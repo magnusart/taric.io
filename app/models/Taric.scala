@@ -65,6 +65,7 @@ object TaricProdCodeParser {
     val pgpF = new PGPObjectFactory(armored)
     val compressed = pgpF.nextObject().asInstanceOf[PGPCompressedData]
     val pgpF2 = new PGPObjectFactory(compressed.getDataStream())
+    // TODO 2012-12-03 Magnus: Verify signature instead of throwing it away.
     pgpF2.nextObject() // Throw away signature in this version. We do not verify it.
     val literal = pgpF2.nextObject().asInstanceOf[PGPLiteralData]
 
@@ -95,6 +96,8 @@ object TaricProdCodeParser {
  * User: magnus
  * Date: 2012-11-14
  * Time: 21:13
+ *
+ * Usage to test. Run <code>Taric.persistFromTifUrl(Taric.url2)</code>.
  */
 object Taric {
   // TODO 2012-12-03 Magnus: Do not use hardcoded URL:s. Check for latest KA-file and compare with current version.
@@ -112,16 +115,24 @@ object Taric {
     Database.forURL("jdbc:h2:mem:test1", driver = "org.h2.Driver") withSession {
       (ProductCodes.ddl).create
 
-      for(c <- codes) {
-        ProductCodes.insertProjection.insert(c.hs, c.hsSub, c.cn, c.pres, !c.endDate.isDefined, "TARIC", c.startDate)
-      }
+    // TODO 2012-12-03 Magnus: Check for existing elements, overwrite.
+    for(c <- codes) {
+      ProductCodes.insertProjection.insert(c.hs,
+        c.hsSub,
+        c.cn,
+        c.pres,
+        !c.endDate.isDefined,
+        "TARIC",
+        c.startDate)
+    }
 
-      println("Select all that starts with 03")
 
-      val listOf03 = for {
-        pc <- ProductCodes
-        if( pc.hs.startsWith("03") )
-      } yield pc.id ~ pc.hs ~ pc.hsSub ~ pc.cn ~ pc.pres
+    println("TEST: Select all Product Codes that starts with 03")
+
+    val listOf03 = for {
+      pc <- ProductCodes
+      if( pc.hs.startsWith("03") )
+    } yield pc.id ~ pc.hs ~ pc.hsSub ~ pc.cn ~ pc.pres
 
       for(pc <- listOf03) println(pc)
     }
