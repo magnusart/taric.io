@@ -1,13 +1,14 @@
-package models
+package io.taric
 import java.util.zip._
 import java.net.URL
-import java.io.InputStream
+import java.io.{FileInputStream, InputStream, File}
 import scalax.io._
 import scalax.io.JavaConverters._
 import scalax.io.managed.InputStreamResource
-import org.bouncycastle.openpgp.PGPObjectFactory
-import org.bouncycastle.openpgp.PGPCompressedData
-import org.bouncycastle.openpgp.PGPLiteralData
+import org.bouncycastle.openpgp._
+import operator.bc.BcPGPContentVerifierBuilderProvider
+import operator.PGPContentVerifierBuilderProvider
+import scala.Some
 
 // Import the session management, including the implicit threadLocalSession
 import org.scalaquery.session._
@@ -55,20 +56,19 @@ object TaricProdCodeParser {
     decryptPgp(stream)
   }
 
-  private def decryptPgp(stream:InputStream) = {
+  private def decryptPgp(messageStream:InputStream) = {
     import java.security.Security
     import org.bouncycastle.jce.provider.BouncyCastleProvider
     import org.bouncycastle.openpgp.PGPUtil
 
     Security.addProvider(new BouncyCastleProvider())
-    val armored = PGPUtil.getDecoderStream(stream)
+
+    val armored = PGPUtil.getDecoderStream(messageStream)
     val pgpF = new PGPObjectFactory(armored)
     val compressed = pgpF.nextObject().asInstanceOf[PGPCompressedData]
     val pgpF2 = new PGPObjectFactory(compressed.getDataStream())
-    // TODO 2012-12-03 Magnus: Verify signature instead of throwing it away.
-    pgpF2.nextObject() // Throw away signature in this version. We do not verify it.
-    val literal = pgpF2.nextObject().asInstanceOf[PGPLiteralData]
 
+    val literal = pgpF2.nextObject().asInstanceOf[PGPLiteralData]
     parseFromGzipSource(literal.getInputStream)
   }
 
@@ -103,7 +103,7 @@ object Taric {
   // TODO 2012-12-03 Magnus: Do not use hardcoded URL:s. Check for latest KA-file and compare with current version.
   val url = "http://distr.tullverket.se/distr/taric/testflt/tot/3006_KA.tot.gz"
   val url2 = "http://distr.tullverket.se/distr/taric/flt/tot/3030_KA.tot.gz.pgp"
-
+  val keyPath = "../Taric_Fildistribution.asc"
   //TODO 2012-12-03 Magnus: Handle KI (replaced) and KJ (added) code files
 
   def persistFromTifUrl(url:String) {
@@ -131,7 +131,7 @@ object Taric {
 
     val listOf03 = for {
       pc <- ProductCodes
-      if( pc.hs.startsWith("03") )
+      if( pc.hs.startsWith("03") || pc.hs.startsWith("1604") || pc.hs.startsWith("1605"))
     } yield pc.id ~ pc.hs ~ pc.hsSub ~ pc.cn ~ pc.pres
 
       for(pc <- listOf03) println(pc)
