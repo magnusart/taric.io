@@ -65,7 +65,6 @@ object TaricBuild extends Build {
       }
 
       // ---- Application dependencies ----
-
       val akkaActor   = "com.typesafe.akka"   % "akka-actor"              % Version.Akka
       val akkaRemote  = "com.typesafe.akka"   % "akka-remote"             % Version.Akka
       val akkaTestKit = "com.typesafe.akka"   % "akka-testkit"            % Version.Akka
@@ -81,7 +80,6 @@ object TaricBuild extends Build {
 
 
       // ---- Test dependencies ----
-
       val scalaTest   = "org.scalatest"       % "scalatest_%s".format(ScalaVersion)  % Version.Scalatest  % "test"
       val jUnit       = "junit"               % "junit"                    % Version.JUnit      % "test"
     }
