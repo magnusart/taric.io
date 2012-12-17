@@ -1,4 +1,4 @@
-package io.taric
+package io.taric.old
 import java.util.zip._
 import java.net.URL
 import java.io.{FileInputStream, InputStream, File}
@@ -9,6 +9,7 @@ import org.bouncycastle.openpgp._
 import operator.bc.BcPGPContentVerifierBuilderProvider
 import operator.PGPContentVerifierBuilderProvider
 import scala.Some
+import io.taric.Models.TaricCode
 
 // Import the session management, including the implicit threadLocalSession
 import org.scalaquery.session._
@@ -24,13 +25,6 @@ import org.scalaquery.ql.TypeMapper._
 import org.scalaquery.ql.extended.H2Driver.Implicit._
 import org.scalaquery.ql.extended.{ExtendedTable => Table}
 
-case class TaricCode(fullCode: String, startDate:String, endDate:Option[String]) {
-  require("""(^\d{10}$|^\d{8}$)""".r.findFirstIn(fullCode).isDefined)
-  val hs = fullCode.take(4)
-  val hsSub = fullCode.drop(4).take(2)
-  val cn = fullCode.drop(6).take(2)
-  val pres = if (fullCode.length == 10) Some(fullCode.drop(8).take(2)) else None
-}
 
 case class ProductCode(id:Int, hs:String, hsSub:String, cn:String, pres:Option[String],
     active:Boolean, ptype:String, startDate:String)
@@ -50,47 +44,6 @@ object ProductCodes extends Table[(Int, String, String, String, Option[String],
   val insertProjection = hs ~ hsSub ~ cn ~ pres ~ active ~ ptype ~ startDate
 }
 
-object TaricProdCodeParser {
-  def parseFromURL(url:String):LongTraversable[TaricCode] = {
-    val stream = new URL(url).openStream
-    decryptPgp(stream)
-  }
-
-  private def decryptPgp(messageStream:InputStream) = {
-    import java.security.Security
-    import org.bouncycastle.jce.provider.BouncyCastleProvider
-    import org.bouncycastle.openpgp.PGPUtil
-
-    Security.addProvider(new BouncyCastleProvider())
-
-    val armored = PGPUtil.getDecoderStream(messageStream)
-    val pgpF = new PGPObjectFactory(armored)
-    val compressed = pgpF.nextObject().asInstanceOf[PGPCompressedData]
-    val pgpF2 = new PGPObjectFactory(compressed.getDataStream())
-
-    val literal = pgpF2.nextObject().asInstanceOf[PGPLiteralData]
-    parseFromGzipSource(literal.getInputStream)
-  }
-
-  private def parseFromGzipSource(stream:InputStream) = {
-    val unzipped = new GZIPInputStream(stream)
-    val source = Resource.fromInputStream(unzipped)
-    parseFromPlainSource(source)
-  }
-
-  private def prodcode(line:String) = line.drop(3).take(10).trim
-  private def startDate(line:String) = line.drop(13).take(8).trim
-  private def endDate(line:String) = {
-    val tmp = line.drop(21).take(8).trim
-    if(tmp.length > 0) Option(tmp)
-    else None
-  }
-
-  private def parseFromPlainSource(source:InputStreamResource[InputStream]) = for {
-    line <- source lines() drop(1)
-  } yield TaricCode(prodcode(line), startDate(line), endDate(line))
-}
-
 /**
  * Copyright Solvies AB 2012
  * User: magnus
@@ -106,25 +59,21 @@ object Taric {
   val keyPath = "../Taric_Fildistribution.asc"
   //TODO 2012-12-03 Magnus: Handle KI (replaced) and KJ (added) code files
 
-  def persistFromTifUrl(url:String) {
-    persist(TaricProdCodeParser.parseFromURL(url))
-  }
-
   def persist(codes:LongTraversable[TaricCode]) = {
     // TODO 2012-12-03 Magnus: Use Oracle DB-driver instead.
     Database.forURL("jdbc:h2:mem:test1", driver = "org.h2.Driver") withSession {
       (ProductCodes.ddl).create
 
     // TODO 2012-12-03 Magnus: Check for existing elements, overwrite.
-    for(c <- codes) {
-      ProductCodes.insertProjection.insert(c.hs,
-        c.hsSub,
-        c.cn,
-        c.pres,
-        !c.endDate.isDefined,
-        "TARIC",
-        c.startDate)
-    }
+    //for(c <- codes) {
+     // ProductCodes.insertProjection.insert(c.hs,
+     //   c.hsSub,
+     //   c.cn,
+     //   c.pres,
+     //   !c.endDate.isDefined,
+     //   "TARIC",
+     //   c.startDate)
+    //}
 
 
     println("TEST: Select all Product Codes that starts with 03")

@@ -24,7 +24,7 @@ object TaricBuild extends Build {
     Seq(libraryDependencies ++= Dependencies.akkaComponent ++
                                 Dependencies.crypto ++
                                 Dependencies.db ++
-                                Dependencies.fileIO)
+                                Dependencies.io)
     )
 
   lazy val defaultSettings = Defaults.defaultSettings ++ Seq(
@@ -47,7 +47,7 @@ object TaricBuild extends Build {
     val akkaComponent = Seq(akkaActor, akkaRemote, akkaTestKit, scalaTest, jUnit, scalaTime, scalaSTM)
     val crypto = Seq(bcprov, bcpkix, bcpg)
     val db = Seq(h2, scalaquery)
-    val fileIO = Seq(scalaIoCore, scalaIoFile)
+    val io = Seq(scalaIoCore, commonsNet)
   }
 
   object Dependency {
@@ -62,6 +62,7 @@ object TaricBuild extends Build {
         val H2        = "1.3.168"
         val ScalaQuery = "0.9.5"
         val ScalaIO = "0.4.1-seq"
+        val CommonsNet = "3.1"
       }
 
       // ---- Application dependencies ----
@@ -77,9 +78,11 @@ object TaricBuild extends Build {
       val scalaquery  = "org.scalaquery" % "scalaquery_2.9.0-1" % Version.ScalaQuery
       val scalaIoCore = "com.github.scala-incubator.io" %% "scala-io-core" % Version.ScalaIO
       val scalaIoFile = "com.github.scala-incubator.io" %% "scala-io-file" % Version.ScalaIO
+      val commonsNet   = "commons-net" % "commons-net" % Version.CommonsNet
 
 
-      // ---- Test dependencies ----
+
+    // ---- Test dependencies ----
       val scalaTest   = "org.scalatest"       % "scalatest_%s".format(ScalaVersion)  % Version.Scalatest  % "test"
       val jUnit       = "junit"               % "junit"                    % Version.JUnit      % "test"
     }
