@@ -1,14 +1,10 @@
-package io.taric
+package io.taric.models
 
 import java.io.InputStream
-import scalax.io.managed.InputStreamResource
 import java.util.zip.GZIPInputStream
-import io.taric.Models.TaricCode
-import scalax.io.LongTraversable
 import akka.actor.ActorRef
 
-object Events {
-  sealed trait Event {
+sealed trait Event {
     def sender:Option[ActorRef]
   }
 
@@ -20,14 +16,3 @@ object Events {
   case class TaricKaDecryptedStream(stream: InputStream, sender:Option[ActorRef] = None) extends Event
   case class TaricKaUnzippedStream(stream: GZIPInputStream, sender:Option[ActorRef] = None) extends Event
   case class TaricKaCode(taricCode:TaricCode, sender:Option[ActorRef] = None) extends Event
-
-  sealed trait Data
-
-  case object Uninitialized extends Data
-  case object BrowsingFTP extends Data
-  case object Unencrypting extends Data
-  case object Extracting extends Data
-  case object Parsing extends Data
-
-
-}

@@ -9,7 +9,7 @@ import org.bouncycastle.openpgp._
 import operator.bc.BcPGPContentVerifierBuilderProvider
 import operator.PGPContentVerifierBuilderProvider
 import scala.Some
-import io.taric.Models.TaricCode
+import io.taric.models.TaricCode
 
 // Import the session management, including the implicit threadLocalSession
 import org.scalaquery.session._

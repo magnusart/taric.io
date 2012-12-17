@@ -2,10 +2,12 @@ package io.taric
 
 import akka.actor.{ActorRef, Props, ActorSystem}
 import com.typesafe.config._
-import io.taric.Actors._
+import io.taric.services._
 import akka.routing.{RoundRobinRouter, Listen}
 import akka.util.duration._
-import io.taric.Events.{TaricDiffResourceFtp, TaricTotalResourceFtp, TaricKaResource}
+import io.taric.models._
+import services._
+import akka.routing.Listen
 ;
 
 object ImportApp extends App {
@@ -15,14 +17,14 @@ object ImportApp extends App {
 
   val eventBus = system.actorOf(Props[EventBus], "event-bus")
 
-  // Services
+  // ActorServices
   val taricBrowser = system.actorOf(Props[TaricFtpBrowser], "taric-ftp")
   val taricReader = system.actorOf(Props[TaricReader], "taric-reader")
   val pgpDecryptor = system.actorOf(Props[PgpDecryptor], "pgp-decryptor")
   val gzipDecompressor = system.actorOf(Props[GzipDecompressor], "gzip-decompressor")
   val taricParser = system.actorOf(Props[TaricParser], "taric-parser")
 
-  // Routed Services
+  // Routed ActorServices
   val taricDebugPrinter1 = system.actorOf(Props[DebugLogger], "debug-logger-1")
   val taricDebugPrinter2 = system.actorOf(Props[DebugLogger], "debug-logger-2")
   val taricDebugPrinter3 = system.actorOf(Props[DebugLogger], "debug-logger-3")
@@ -31,7 +33,7 @@ object ImportApp extends App {
   // Route these
   val debugRouter = system.actorOf(Props().withRouter(RoundRobinRouter(routees = routees)))
 
-  // Register Services with event bus
+  // Register ActorServices with event bus
   eventBus ! Listen(taricBrowser)
   eventBus ! Listen(taricReader)
   eventBus ! Listen(pgpDecryptor)
