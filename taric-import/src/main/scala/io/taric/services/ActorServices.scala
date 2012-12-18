@@ -71,7 +71,7 @@ class TaricFtpBrowser extends Actor with ActorLogging {
   private def publishOnEventBus = null
 
   override def receive = {
-    case TaricTotalResourceFtp( total, _ ) =>
+    case TaricTotalResourceFtp( total ) =>
       implicit val url = total
       // TODO Magnus Andersson (2012-12-15) Move this to configuration
 
@@ -93,7 +93,7 @@ class TaricFtpBrowser extends Actor with ActorLogging {
             printFileNames(fs2)
           }
       } )
-    case TaricDiffResourceFtp( diff, _ ) =>
+    case TaricDiffResourceFtp( diff ) =>
       implicit val url = diff
       // TODO Magnus Andersson (2012-12-15) Move this to configuration
       Future( connectToFtp {
@@ -111,8 +111,8 @@ class TaricReader extends Actor with ActorLogging {
   implicit val timeout = Timeout(60 seconds)
 
   override def receive = {
-    case TaricKaResource( url, originator ) => Future( parseFromURL( url ) ) map
-      ( TaricKaStream( _, originator ) ) pipeTo
+    case TaricKaResource( url ) => Future( parseFromURL( url ) ) map
+      ( TaricKaStream( _ ) ) pipeTo
       eventBus
   }
 }
@@ -135,8 +135,8 @@ class PgpDecryptor extends Actor with ActorLogging {
   }
 
   override def receive = {
-    case TaricKaStream( stream, originator ) => Future( decryptPgp( stream ) ) map
-      ( TaricKaDecryptedStream( _, originator ) ) pipeTo
+    case TaricKaStream( stream ) => Future( decryptPgp( stream ) ) map
+      ( TaricKaDecryptedStream( _ ) ) pipeTo
       eventBus
   }
 }
@@ -148,8 +148,8 @@ class GzipDecompressor extends Actor with ActorLogging {
   }
 
   override def receive = {
-    case TaricKaDecryptedStream( stream, originator ) => Future( unzipStream( stream ) ) map
-      ( TaricKaUnzippedStream( _, originator ) ) pipeTo
+    case TaricKaDecryptedStream( stream ) => Future( unzipStream( stream ) ) map
+      ( TaricKaUnzippedStream( _ ) ) pipeTo
       eventBus
   }
 }
@@ -161,8 +161,8 @@ class TaricParser extends Actor with ActorLogging {
   } yield TaricCode(prodcode(line), startDate(line), endDate(line))
 
   override def receive = {
-    case TaricKaUnzippedStream( stream, originator ) => Future( parseKaCodes( stream ) ) map
-      ( _.map(TaricKaCode( _, originator ) ) foreach
+    case TaricKaUnzippedStream( stream ) => Future( parseKaCodes( stream ) ) map
+      ( _.map(TaricKaCode( _ ) ) foreach
         ( eventBus ! _ ) )
   }
 }
@@ -173,9 +173,8 @@ class Persist extends Actor with ActorLogging {
 
 class DebugLogger extends Actor with ActorLogging {
   override def receive = {
-    case TaricKaCode( taricCode, originator ) if( taricCode.hs.startsWith("0304")) => {
+    case TaricKaCode( taricCode ) if( taricCode.hs.startsWith("0304")) => {
       log.debug( taricCode toString )
-      originator.map( _ ! true )
     }
   }
 }

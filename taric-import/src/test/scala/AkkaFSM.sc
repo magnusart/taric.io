@@ -1,5 +1,5 @@
 
-import akka.actor.{ActorLogging, Actor, ActorRef, FSM}
+import akka.actor._
 object AkkaFSMWorkSheet{
   sealed trait State
   sealed trait Data
@@ -11,6 +11,7 @@ object AkkaFSMWorkSheet{
   case class Message(msg:String) extends Data
   case object Startup extends Event
   case object Tell extends Event
+
   class ImportController extends Actor with FSM[State, Data] {
     startWith(Idle, Uninitialized)
     when(Idle) {
@@ -41,6 +42,6 @@ object AkkaFSMWorkSheet{
 
 
 
-
-
+  val system = ActorSystem()
+  val ic = system.actorOf(Props[ImportController], "test")
 }
