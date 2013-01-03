@@ -1,7 +1,7 @@
-package io.taric
+package io
 
 import java.util.concurrent.Executors
-import akka.dispatch.ExecutionContext
+import scala.concurrent.ExecutionContext
 
 /**
  * Copyright Solvies AB 2012
@@ -9,7 +9,7 @@ import akka.dispatch.ExecutionContext
  * Date: 2012-12-17
  * Time: 22:04
  */
-package object services {
+package object taric {
   implicit val executorService = Executors.newCachedThreadPool()
   implicit val executorContext = ExecutionContext.fromExecutorService(executorService)
 }

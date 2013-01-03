@@ -5,25 +5,31 @@ import com.typesafe.sbt.SbtStartScript
 object TaricBuild extends Build {
   val Organization = "taric.io"
   val Version      = "0.0.1-SNAPSHOT"
-  val ScalaVersion = "2.9.2"
+  val ScalaVersion = "2.10.0"
+
+  lazy val buildSettings = Seq(
+    organization := Organization,
+    version      := Version,
+    scalaVersion := ScalaVersion
+  )
 
   lazy val taric = Project(
     id = "taric",
     base = file("."),
-    settings = defaultSettings ++
+    settings = defaultSettings ++ buildSettings ++
     Seq(SbtStartScript.stage in Compile := Unit),
     aggregate = Seq(timport)
-    )
+  )
 
   lazy val timport = Project(
     id = "taric-import",
     base = file("taric-import"),
     dependencies = Seq(),
-    settings = defaultSettings ++
+    settings = defaultSettings ++ buildSettings ++
     SbtStartScript.startScriptForClassesSettings ++
     Seq(libraryDependencies ++= Dependencies.akkaComponent ++
                                 Dependencies.crypto ++
-                                Dependencies.db ++
+                                //Dependencies.db ++
                                 Dependencies.io)
     )
 
@@ -44,46 +50,39 @@ object TaricBuild extends Build {
 
   object Dependencies {
     import Dependency._
-    val akkaComponent = Seq(akkaActor, akkaRemote, akkaTestKit, scalaTest, jUnit, scalaTime, scalaSTM)
+    val akkaComponent = Seq(akkaActor, akkaRemote, akkaTestKit, jUnit)
     val crypto = Seq(bcprov, bcpkix, bcpg)
-    val db = Seq(h2, scalaquery)
-    val io = Seq(scalaIoCore, commonsNet)
+    val db = Seq(h2, slick)
+    val io = Seq(commonsNet)
   }
 
   object Dependency {
       object Version {
-        val Akka      = "2.0.4"
-        val Scalatest = "1.6.1"
-        val JUnit     = "4.5"
-        val ScalaTime = "0.6"
-        val ScalaSTM  = "0.6"
-        val Jerkson   = "0.5.0"
-        val Bouncycastle = "1.47"
-        val H2        = "1.3.168"
-        val ScalaQuery = "0.9.5"
-        val ScalaIO = "0.4.1-seq"
-        val CommonsNet = "3.1"
+        val Akka          = "2.1.0"
+        val Scalatest     = "1.6.1"
+        val JUnit         = "4.5"
+        val Jerkson       = "0.5.0"
+        val Bouncycastle  = "1.47"
+        val H2            = "1.3.168"
+        val CommonsNet    = "3.1"
+        val Slick         = "1.0.0"
       }
 
       // ---- Application dependencies ----
-      val akkaActor   = "com.typesafe.akka"   % "akka-actor"              % Version.Akka
-      val akkaRemote  = "com.typesafe.akka"   % "akka-remote"             % Version.Akka
-      val akkaTestKit = "com.typesafe.akka"   % "akka-testkit"            % Version.Akka
-      val scalaTime   = "org.scalaj"          % "scalaj-time_%s".format(ScalaVersion) % Version.ScalaTime
-      val scalaSTM    = "org.scala-tools"    %% "scala-stm"               % Version.ScalaSTM
+      val akkaActor   = "com.typesafe.akka" %% "akka-actor"              % Version.Akka
+      val akkaRemote  = "com.typesafe.akka" %% "akka-remote"             % Version.Akka
+      val akkaTestKit = "com.typesafe.akka" %% "akka-testkit"            % Version.Akka
       val bcprov      = "org.bouncycastle" % "bcprov-jdk15on" % Version.Bouncycastle
       val bcpkix      = "org.bouncycastle" % "bcpkix-jdk15on" % Version.Bouncycastle
       val bcpg        = "org.bouncycastle" % "bcpg-jdk15on" % Version.Bouncycastle
       val h2          = "com.h2database" % "h2" % Version.H2
-      val scalaquery  = "org.scalaquery" % "scalaquery_2.9.0-1" % Version.ScalaQuery
-      val scalaIoCore = "com.github.scala-incubator.io" %% "scala-io-core" % Version.ScalaIO
-      val scalaIoFile = "com.github.scala-incubator.io" %% "scala-io-file" % Version.ScalaIO
-      val commonsNet   = "commons-net" % "commons-net" % Version.CommonsNet
+      val slick       = "com.typesafe" %% "slick" % Version.Slick
+      val commonsNet  = "commons-net" % "commons-net" % Version.CommonsNet
 
 
 
     // ---- Test dependencies ----
-      val scalaTest   = "org.scalatest"       % "scalatest_%s".format(ScalaVersion)  % Version.Scalatest  % "test"
+      val scalaTest   = "org.scalatest"       %% "scalatest" % Version.Scalatest  % "test"
       val jUnit       = "junit"               % "junit"                    % Version.JUnit      % "test"
     }
 }

@@ -1,108 +1,90 @@
-package io.taric.services
+package io.taric
+package services
 
 import akka.actor._
 import io.taric.models._
 import io.taric.models.TaricKaParser._
-import io.taric.ImportApp.eventBus
+import io.taric.ImportApp.{commandBus, reportBus}
 import akka.routing.Listeners
-import scala.collection.JavaConversions._
 import java.net.URL
-import akka.dispatch.{Await, Future}
-import scalax.io.Resource
+import scala.concurrent.Future
+
 import java.io.InputStream
 import org.bouncycastle.openpgp.{PGPLiteralData, PGPCompressedData, PGPObjectFactory}
 import java.util.zip.GZIPInputStream
 import akka.pattern.pipe
-import akka.pattern.ask
 import akka.util.Timeout
-import akka.util.Timeout._
-import akka.util.duration._
-import org.apache.commons.net.ftp.{FTPFile, FTPClient}
-import scala.Array
+import scala.concurrent.duration._
+import org.apache.commons.net.ftp.FTPClient
 
-
-class EventBus extends Actor with ActorLogging with Listeners {
+class CommandBus extends Actor with ActorLogging with Listeners {
   def receive = listenerManagement orElse {
-    case ev: Event => gossip(ev)
-    case ar:AnyRef => log.warning("Got a non-event object: %s.".format(ar))
+    case ev: Command => gossip(ev)(sender)
+    log.debug("Command bus {}.", ev)
+    case ar:AnyRef => log.error("Got a unkown object on the command bus: %s.".format(ar))
   }
+}
 
-  // We want to forward the events
-  override def gossip(msg: Any) { listeners foreach (_ forward msg) }
+class ReportBus extends Actor with ActorLogging with Listeners {
+  def receive = listenerManagement orElse {
+    case ev: Report => gossip(ev)
+    log.debug("Report bus {}.", ev)
+    case ar:AnyRef => log.error("Got a unkown object on the report bus: %s.".format(ar))
+  }
+}
+
+class ApplicationResources extends Actor with ActorLogging {
+  var currentVersion = 0
+
+  // TODO Magnus Andersson (2012-12-15) Move this to configuration
+  val taricFtpUrl = "ftp://M10746-1:kehts3qW@distr.tullverket.se:21"
+
+  val totalPath = "/www1/distr/taric/flt/tot/"
+  val totalPattern = """^\d{4}_(KA|KI|KJ).tot.gz.pgp"""
+
+  val diffPath = "/www1/distr/taric/flt/dif/"
+  val diffPattern = """^\d{4}_(DA|DI|DJ).tot.gz.pgp"""
+
+  def receive = {
+    // TODO 2012-12-31 (Magnus Andersson) Store this in AppDB or filesystem
+    case FetchCurrentVersion => sender ! CurrentVersion(currentVersion)
+      log.debug("Current version {} requested.", currentVersion)
+
+    case StoreCurrentVersion(ver) => currentVersion = ver
+    log.debug("New current version {} to be stored.", currentVersion)
+
+    case FetchTaricUrls => sender ! TaricUrls(taricFtpUrl,
+        TaricPathPattern(totalPath, totalPattern),
+        TaricPathPattern(diffPath, diffPattern) )
+  }
 }
 
 class TaricFtpBrowser extends Actor with ActorLogging {
-
-  private def connectToFtp(f: FTPClient => Future[Unit])(implicit url:String ) = {
-    val ftpUrl = new URL(url)
-    implicit val ftpClient = new FTPClient()
-
-    ftpClient connect(ftpUrl.getHost, ftpUrl.getPort)
-    val userPass = ( ftpUrl getUserInfo ) split(":")
-    ftpClient login(userPass(0), userPass(1))
-    ftpClient changeWorkingDirectory(ftpUrl.getPath)
-    //enter passive mode
-    ftpClient enterLocalPassiveMode()
-
-    f(ftpClient).onComplete{ eith =>
-      if( eith.isLeft ) log.error(eith.left.get, "Unable to complete work. Trying to close connection.")
-      if(ftpClient.isConnected) {
-        ftpClient logout()
-        ftpClient disconnect()
-      }
-    }
-  }
-
-  private def listFiles(filter:String)(implicit ftpClient:FTPClient) = for {
-    file <- ftpClient.listFiles
-    if(file.getName.matches(filter))
-  } yield file
-
-  private def determineLatestNum(fs:Array[FTPFile]):String = {
-    def highestNum = (i:String, f:FTPFile) => if(Integer.parseInt(i) > fileNum(f)) i else sNum(f)
-    def fileNum(s:FTPFile):Int = Integer.parseInt(sNum(s))
-    def sNum(f:FTPFile):String = f.getName.take(4)
-
-    fs.foldLeft("0")( highestNum )
-  }
-
-  private def printFileNames(fs:Array[FTPFile]) = fs map ( _.getName ) foreach log.debug
-
-  private def publishOnEventBus = null
+  import io.taric.utilities.FtpUtility._
+  implicit val loggger = log
 
   override def receive = {
-    case TaricTotalResourceFtp( total ) =>
-      implicit val url = total
-      // TODO Magnus Andersson (2012-12-15) Move this to configuration
+    case BrowseFTP( ver, ftpUrl, TaricPathPattern(tpath, tpat), TaricPathPattern(dpath, dpat)) =>
+      implicit val url = ftpUrl
+      connectToFtp {
+        implicit ftpClient:FTPClient => Future{
+          // Get latest snapshots (actually three of them)
+          val latestTot = getLatestFile(dpath, dpat)
 
-      Future( connectToFtp{
-        implicit ftpClient:FTPClient =>
-          Future {
-            val fs = listFiles("""^\d{4}_(KA|KI|KJ).tot.gz.pgp""")
-            val latest = determineLatestNum(fs)
-            log.debug("Latest %s.".format(latest))
-            val fs2 = listFiles("""^"""+ latest +"""_KA.tot.gz.pgp""")
-            val f = fs2(0).getName
-            log.debug(f)
-            val stream = ftpClient.retrieveFileStream(f)
-            implicit val timeout = 15 seconds
-            val future = (eventBus ? TaricKaStream(stream))(timeout)
-            Await.ready(future, timeout).mapTo[Boolean].onComplete( res =>
-              if(res.isRight) log.debug("Everything went fine.")
-            )
-            printFileNames(fs2)
+          if (latestTot > ver) {
+            val tot = getFiles(latestTot - 1, tpath, tpat)
+            val dif = getFiles(latestTot, dpath, dpat)
+            reportBus ! BrowsingResult( Option( (tot ++ dif).toList ), Option(ftpClient) )
           }
-      } )
-    case TaricDiffResourceFtp( diff ) =>
-      implicit val url = diff
-      // TODO Magnus Andersson (2012-12-15) Move this to configuration
-      Future( connectToFtp {
-        implicit ftpClient:FTPClient =>
-          Future {
-            val fs = listFiles("""^\d{4}_(DA|DI|DJ).dif.gz.pgp""")
-            printFileNames(fs)
-          }
-      } )
+        }
+      }
+
+    case OpenStreams( fileNames, ftpClient ) => {
+      implicit val timeout = Timeout(15 seconds)
+      Future (
+        for ( fileName <- fileNames ) yield ftpClient.retrieveFileStream(fileName)
+      ).map( StreamsOpened( _ ) ).pipeTo( reportBus )
+    }
   }
 }
 
@@ -112,8 +94,7 @@ class TaricReader extends Actor with ActorLogging {
 
   override def receive = {
     case TaricKaResource( url ) => Future( parseFromURL( url ) ) map
-      ( TaricKaStream( _ ) ) pipeTo
-      eventBus
+      ( TaricKaStream( _ ) ) pipeTo commandBus
   }
 }
 
@@ -135,35 +116,34 @@ class PgpDecryptor extends Actor with ActorLogging {
   }
 
   override def receive = {
-    case TaricKaStream( stream ) => Future( decryptPgp( stream ) ) map
-      ( TaricKaDecryptedStream( _ ) ) pipeTo
-      eventBus
+    case DecryptStream( stream ) => Future( decryptPgp( stream ) ) map ( StreamDecrypted( _ ) ) pipeTo sender
   }
 }
 
 class GzipDecompressor extends Actor with ActorLogging {
-  private def unzipStream(stream:InputStream) = {
-    val unzipped = new GZIPInputStream(stream)
-    unzipped
-  }
+  private def unzipStream(stream:InputStream):InputStream = new GZIPInputStream(stream)
 
   override def receive = {
-    case TaricKaDecryptedStream( stream ) => Future( unzipStream( stream ) ) map
-      ( TaricKaUnzippedStream( _ ) ) pipeTo
-      eventBus
+    case UnzipStream( stream ) => Future( unzipStream( stream ) ) map ( StreamUnzipped( _ ) ) pipeTo sender
   }
 }
 
 class TaricParser extends Actor with ActorLogging {
+  import java.io.{BufferedReader, InputStreamReader}
 
-  def parseKaCodes(stream:InputStream) = for {
-    line <- Resource.fromInputStream( stream ).lines().drop(1)
+  private def lineReader( stream: InputStream ):Stream[String] = {
+    val in = new BufferedReader(new InputStreamReader(System in))
+    Stream.continually(in readLine)
+  }
+
+  def parseKaCodes(stream:InputStream) =  for {
+    line <- lineReader(stream).drop(1)
   } yield TaricCode(prodcode(line), startDate(line), endDate(line))
 
   override def receive = {
     case TaricKaUnzippedStream( stream ) => Future( parseKaCodes( stream ) ) map
       ( _.map(TaricKaCode( _ ) ) foreach
-        ( eventBus ! _ ) )
+        ( commandBus ! _ ) )
   }
 }
 
