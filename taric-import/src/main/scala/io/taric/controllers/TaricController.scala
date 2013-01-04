@@ -17,6 +17,7 @@ import io.taric.models.BrowsingResult
 import akka.util.Timeout
 import akka.event.LoggingAdapter
 import scala.concurrent.Future
+import scala.Option
 
 /**
  * Copyright Solvies AB 2012
@@ -32,14 +33,18 @@ object TaricHandler {
     log.debug("Result from cleanup. Client open = {}.", isClientOpen(client) )
   }
 
-  def cleanup(client:Option[FTPClient] = None, streams:Option[List[InputStream]] = None) = {
+  def cleanup(client:Option[FTPClient] = None, streams:Option[List[Option[InputStream]]] = None) = {
     closeStreams(streams)
     closeConnection(client)
   }
 
   private def isClientOpen( client:Option[FTPClient] ) = client.map( _.isConnected ) getOrElse( false )
 
-  private def closeStreams(streams:Option[List[InputStream]]) = for ( s <- streams.getOrElse(List.empty) ) yield s.close()
+  private def closeStreams(streams:Option[List[Option[InputStream]]]) = for {
+    stream <- streams.getOrElse(List.empty)
+    s <- stream
+  } yield s.close()
+
 
   private def closeConnection(client:Option[FTPClient]) = client.map {
     con => if(con.isConnected) {
@@ -128,9 +133,9 @@ class TaricImportFSM extends Actor with FSM[State, Data] {
   }
 
   when(OpeningStreams) {
-    case Event(StreamsOpened( openStreams ), data:FTPConnection)=>
+    case Event( StreamsOpened( openStreams ), data:FTPConnection )=>
       log.debug("Streams now open.")
-      goto( Decrypting ) using( data.copy( streams = Option(openStreams) ) ) forMax( 30 seconds )
+      goto( Decrypting ) using( data.copy( streams = Option( openStreams ) ) ) forMax( 30 seconds )
   }
 
   onTransition {
@@ -139,15 +144,18 @@ class TaricImportFSM extends Actor with FSM[State, Data] {
       log.debug("Transitioning OpeningStreams -> Decrypting")
       nextStateData match {
         case FTPConnection( _, _, Some( openStreams ) ) =>
-          Future( aggregateDecryptedStreams( openStreams ) ).mapTo[List[InputStream]]
+          Future( aggregateDecryptedStreams( openStreams ) ).mapTo[List[Option[InputStream]]]
             .map( StreamsDecrypted( _ ) ).pipeTo( reportBus )
 
       }
   }
 
-  private def aggregateDecryptedStreams(openStreams:List[InputStream])
+  private def aggregateDecryptedStreams(openStreams:List[Option[InputStream]])
                                        (implicit timeout:akka.util.Timeout) = {
-    val streamFutures = openStreams.map((commandBus ? DecryptStream(_)))
+    val streamFutures = for {
+      streamOpt <- openStreams
+      stream <- streamOpt
+    } yield ( commandBus ? DecryptStream( stream ) )
 
     Future.sequence( for ( decryptedFuture <- streamFutures )
     yield decryptedFuture.mapTo[StreamDecrypted].map(_.stream) )
@@ -165,14 +173,17 @@ class TaricImportFSM extends Actor with FSM[State, Data] {
       log.debug("Transitioning Decrypting -> Unzipping")
       nextStateData match {
         case FTPConnection( _, _, Some( decryptedStreams ) ) =>
-          aggregateUnzippedStreams( decryptedStreams ).mapTo[List[InputStream]]
+          aggregateUnzippedStreams( decryptedStreams ).mapTo[List[Option[InputStream]]]
             .map( StreamsUnzipped( _ ) ).pipeTo(reportBus)
       }
   }
 
-  private def aggregateUnzippedStreams( decryptedStreams:List[InputStream] )
+  private def aggregateUnzippedStreams( decryptedStreams:List[Option[InputStream]] )
                                       (implicit timeout:akka.util.Timeout) = {
-    val streamFutures = decryptedStreams.map((commandBus ? UnzipStream(_)))
+    val streamFutures = for {
+      streamOpt <- decryptedStreams
+      stream <- streamOpt
+    } yield ( commandBus ? UnzipStream( stream ) )
 
     Future.sequence( for ( unzippedFuture <- streamFutures )
     yield unzippedFuture.mapTo[StreamUnzipped].map(_.stream) )

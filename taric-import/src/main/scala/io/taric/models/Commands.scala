@@ -23,17 +23,19 @@ case class VersionUrlsAggregate( ver:Int, urls:TaricUrls ) extends Report
 case class StoreCurrentVersion(ver:Int) extends Command
 
 case class BrowseFTP(ver:Int, url:String, tot:TaricPathPattern, dif:TaricPathPattern) extends Command
-case class OpenStreams(fileNames: List[String], client: FTPClient) extends Command
-case class StreamsOpened(streams: List[InputStream]) extends Report
+
+case class PathFileName(path:String, fileName:String)
+case class OpenStreams(files: List[PathFileName], client: FTPClient) extends Command
+case class StreamsOpened(streams: List[Option[InputStream]]) extends Report
 case class BrowsingResult(fileNames:Option[List[FTPFile]] = None, ftpClient:Option[FTPClient] = None) extends Report
 
 case class DecryptStream(stream:InputStream) extends Command
 case class StreamDecrypted(stream:InputStream) extends Report
-case class StreamsDecrypted(streams:List[InputStream]) extends Report
+case class StreamsDecrypted(streams:List[Option[InputStream]]) extends Report
 
 case class UnzipStream( stream:InputStream ) extends Command
 case class StreamUnzipped( stream:InputStream ) extends Report
-case class StreamsUnzipped( streams:List[InputStream] ) extends Report
+case class StreamsUnzipped( streams:List[Option[InputStream]] ) extends Report
 
 case object ImportFinished extends Command
 

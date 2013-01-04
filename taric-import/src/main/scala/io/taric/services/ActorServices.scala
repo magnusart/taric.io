@@ -67,26 +67,33 @@ class TaricFtpBrowser extends Actor with ActorLogging {
     case BrowseFTP( ver, ftpUrl, TaricPathPattern(tpath, tpat), TaricPathPattern(dpath, dpat)) =>
       implicit val url = ftpUrl
       connectToFtp {
-        implicit ftpClient:FTPClient => Future{
+        implicit ftpClient:FTPClient => Future {
           // Get latest snapshots (actually three of them)
-          val latestTot = getLatestFile(dpath, dpat)
+          // TODO: Magnus Andersson (2013-01-03) There is a bug here, always returns 0.
+          val latestTot = getLatestFile(tpath, tpat)
+          log.debug("Latest total file version {}.", latestTot)
 
           if (latestTot > ver) {
             val tot = getFiles(latestTot - 1, tpath, tpat)
             val dif = getFiles(latestTot, dpath, dpat)
             reportBus ! BrowsingResult( Option( (tot ++ dif).toList ), Option(ftpClient) )
+          } else {
+            log.debug("Did not find any newer versions (latest: {}) than current version {}.", latestTot, ver)
           }
         }
       }
 
-    case OpenStreams( fileNames, ftpClient ) => {
+    case OpenStreams( files, ftpClient ) => {
+      log.debug("Opening Streams for taric files.")
       implicit val timeout = Timeout(15 seconds)
+      log.error("We are missing the correct path for each corresponding file name. Magnus Andersson 2013-01-03")
       Future (
-        for ( fileName <- fileNames ) yield ftpClient.retrieveFileStream(fileName)
+        for ( PathFileName(path, fileName) <- files) yield Option( getFileStream( path, fileName ) )
       ).map( StreamsOpened( _ ) ).pipeTo( reportBus )
     }
   }
 }
+
 
 class TaricReader extends Actor with ActorLogging {
   private def parseFromURL( url:String ):InputStream = new URL(url).openStream

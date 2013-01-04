@@ -25,4 +25,4 @@ case object Uninitialized extends Data
 case class BrowsingFtpForVersions(ver:Int, url:String, tot:TaricPathPattern, dif:TaricPathPattern) extends Data
 case class FTPConnection(client:Option[FTPClient] = None,
                          fileName:Option[List[String]] = None,
-                         streams:Option[List[InputStream]] = None) extends Data
+                         streams:Option[List[Option[InputStream]]] = None) extends Data

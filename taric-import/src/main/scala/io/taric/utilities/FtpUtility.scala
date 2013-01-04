@@ -8,6 +8,7 @@ import io.taric.ImportApp._
 import util.Failure
 import io.taric.models.BrowsingResult
 import akka.event.LoggingAdapter
+import java.io.InputStream
 
 /**
  * Copyright Solvies AB 2012
@@ -65,5 +66,10 @@ object FtpUtility {
     val fs = listFiles(pattern, ver)
     debugPrintFileNames(fs)
     fs
+  }
+
+  def getFileStream(path:String, fileName:String)(implicit ftpClient:FTPClient):InputStream = {
+    ftpClient changeWorkingDirectory(path)
+    ftpClient retrieveFileStream(fileName)
   }
 }
