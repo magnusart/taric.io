@@ -30,10 +30,14 @@ import util.{Failure, Success}
  */
 object TaricHandler {
   def doCleanup(stateData:Data, nextStateData:Data)(implicit log:LoggingAdapter) = (stateData, nextStateData) match {
-    case (_, FTPConnection(client, _, streams)) => cleanup(client, streams)
-    log.debug("Result from cleanup. Client open = {}.", isClientOpen(client) )
-    case (FTPConnection(client, _, streams), _) => cleanup(client, streams)
-    log.debug("Result from cleanup. Client open = {}.", isClientOpen(client) )
+    case (_, FTPConnection(client, _, streams)) =>
+      cleanup(client, streams)
+      log.debug("Result from cleanup. Client open = {}.", isClientOpen(client) )
+    case (FTPConnection(client, _, streams), _) =>
+      cleanup(client, streams)
+      log.debug("Result from cleanup. Client open = {}.", isClientOpen(client) )
+    case (_, _) =>
+      log.debug("No connections to clean up")
   }
 
   def cleanup(client:Option[FTPClient] = None, streams:Option[List[InputStream]] = None) = {

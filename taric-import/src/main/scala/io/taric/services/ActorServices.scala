@@ -84,13 +84,19 @@ class TaricFtpBrowser extends Actor with ActorLogging {
   import io.taric.utilities.FtpUtility._
   implicit val loggger = log
 
+  private[this] def openFileStreams( files:List[PathFileName] )(implicit timeout:Timeout, ftpClient:FTPClient) = Future {
+    for ( PathFileName(path, fileName) <- files ) yield getFileStream( path, fileName )
+  }
+
+  private[this] def aggregateStreams( future:Future[List[InputStream]] ) = for {
+    streams <- future.mapTo[List[InputStream]]
+  } yield StreamsOpened( streams.filterNot( _ == null ) )
+
   override def receive = {
     case BrowseFTP( ver, ftpUrl, TaricPathPattern(tpath, tpat), TaricPathPattern(dpath, dpat)) =>
       implicit val url = ftpUrl
       connectToFtp {
         implicit ftpClient:FTPClient => Future {
-          // Get latest snapshots (actually three of them)
-          // TODO: Magnus Andersson (2013-01-03) There is a bug here, always returns 0.
           val latestTot = getLatestFile(tpath, tpat)
           log.debug("Latest total file version {}.", latestTot)
 
@@ -109,9 +115,8 @@ class TaricFtpBrowser extends Actor with ActorLogging {
       log.debug("Opening Streams for taric files: {}.", files)
       implicit val timeout = Timeout(15 seconds)
       implicit val client = ftpClient
-      Future (
-        for ( PathFileName(path, fileName) <- files ) yield getFileStream( path, fileName )
-      ).mapTo[List[InputStream]].map( StreamsOpened( _ ) ).pipeTo( reportBus )
+
+      aggregateStreams( openFileStreams(files) ).pipeTo( reportBus )
     }
   }
 }
@@ -165,7 +170,6 @@ class TaricParser extends Actor with ActorLogging {
   private[this] def lineReader( stream: InputStream ):Stream[String] = {
     val reader = new BufferedReader( new InputStreamReader( stream ) )
     Stream.continually(reader readLine)
-
   }
 
   private[this] def parseTaricStream( stream:InputStream ):Stream[TaricCode] = {
@@ -218,7 +222,7 @@ class Persist extends Actor with ActorLogging {
 
 class DebugLogger extends Actor with ActorLogging {
   override def receive = {
-    case TaricKaCode( taricCode ) => {
+    case TaricKaCode( taricCode ) if (taricCode.fullCode.startsWith("0304"))=> {
       log.debug( taricCode toString )
     }
   }
