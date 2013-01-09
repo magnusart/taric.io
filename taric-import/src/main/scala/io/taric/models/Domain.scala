@@ -6,6 +6,7 @@ package io.taric.models
  * Date: 2012-12-17
  * Time: 22:19
  */
+
 case class TaricCode(fullCode: String, startDate:String, endDate:Option[String]) {
   require("""(^\d{10}$|^\d{8}$)""".r.findFirstIn(fullCode).isDefined)
   val hs = fullCode.take(4)

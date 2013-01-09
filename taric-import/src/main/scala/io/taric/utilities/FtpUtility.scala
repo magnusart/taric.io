@@ -6,7 +6,7 @@ import concurrent.Future
 import java.net.URL
 import io.taric.ImportApp._
 import util.Failure
-import io.taric.models.BrowsingResult
+import models.{PathFileName, BrowsingResult}
 import akka.event.LoggingAdapter
 import java.io.InputStream
 
@@ -65,7 +65,7 @@ object FtpUtility {
     ftpClient changeWorkingDirectory(path)
     val fs = listFiles(pattern, ver)
     debugPrintFileNames(fs)
-    fs
+    for ( f <- fs ) yield PathFileName(path, f.getName)
   }
 
   def getFileStream(path:String, fileName:String)(implicit ftpClient:FTPClient):InputStream = {

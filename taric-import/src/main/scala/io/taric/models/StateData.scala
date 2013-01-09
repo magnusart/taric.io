@@ -1,5 +1,5 @@
 package io.taric.models
-import org.apache.commons.net.ftp.FTPClient
+import org.apache.commons.net.ftp.{FTPFile, FTPClient}
 import java.io.InputStream
 
 /**
@@ -24,5 +24,5 @@ sealed trait Data
 case object Uninitialized extends Data
 case class BrowsingFtpForVersions(ver:Int, url:String, tot:TaricPathPattern, dif:TaricPathPattern) extends Data
 case class FTPConnection(client:Option[FTPClient] = None,
-                         fileName:Option[List[String]] = None,
-                         streams:Option[List[Option[InputStream]]] = None) extends Data
+                         fileName:Option[List[PathFileName]] = None,
+                         streams:Option[List[InputStream]] = None) extends Data

@@ -3,6 +3,7 @@ package io.taric.models
 import java.io.InputStream
 import java.util.zip.GZIPInputStream
 import org.apache.commons.net.ftp.{FTPFile, FTPClient}
+import org.bouncycastle.bcpg.InputStreamPacket
 
 sealed trait Command
 sealed trait Report
@@ -26,16 +27,18 @@ case class BrowseFTP(ver:Int, url:String, tot:TaricPathPattern, dif:TaricPathPat
 
 case class PathFileName(path:String, fileName:String)
 case class OpenStreams(files: List[PathFileName], client: FTPClient) extends Command
-case class StreamsOpened(streams: List[Option[InputStream]]) extends Report
-case class BrowsingResult(fileNames:Option[List[FTPFile]] = None, ftpClient:Option[FTPClient] = None) extends Report
+case class StreamsOpened(streams: List[InputStream]) extends Report
+case class BrowsingResult(fileNames:Option[List[PathFileName]] = None, ftpClient:Option[FTPClient] = None) extends Report
 
 case class DecryptStream(stream:InputStream) extends Command
 case class StreamDecrypted(stream:InputStream) extends Report
-case class StreamsDecrypted(streams:List[Option[InputStream]]) extends Report
+case class StreamsDecrypted(streams:List[InputStream]) extends Report
 
 case class UnzipStream( stream:InputStream ) extends Command
 case class StreamUnzipped( stream:InputStream ) extends Report
-case class StreamsUnzipped( streams:List[Option[InputStream]] ) extends Report
+case class StreamsUnzipped( streams:List[InputStream] ) extends Report
+
+case class ParseStream( stream:InputStream ) extends Command
 
 case object ImportFinished extends Command
 

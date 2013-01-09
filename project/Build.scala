@@ -1,6 +1,7 @@
 import sbt._
 import sbt.Keys._
 import com.typesafe.sbt.SbtStartScript
+import com.github.retronym.SbtOneJar
 
 object TaricBuild extends Build {
   val Organization = "taric.io"
@@ -25,7 +26,7 @@ object TaricBuild extends Build {
     id = "taric-import",
     base = file("taric-import"),
     dependencies = Seq(),
-    settings = defaultSettings ++ buildSettings ++
+    settings = jarSettings ++ defaultSettings ++ buildSettings ++ SbtOneJar.oneJarSettings ++
     SbtStartScript.startScriptForClassesSettings ++
     Seq(libraryDependencies ++= Dependencies.akkaComponent ++
                                 Dependencies.crypto ++
@@ -48,9 +49,11 @@ object TaricBuild extends Build {
     parallelExecution in Test := false
   )
 
+  lazy val jarSettings = Seq( exportJars := true )
+
   object Dependencies {
     import Dependency._
-    val akkaComponent = Seq(akkaActor, akkaRemote, akkaTestKit, jUnit)
+    val akkaComponent = Seq(akkaActor, akkaRemote, akkaTestKit)
     val crypto = Seq(bcprov, bcpkix, bcpg)
     val db = Seq(h2, slick)
     val io = Seq(commonsNet)
@@ -60,7 +63,6 @@ object TaricBuild extends Build {
       object Version {
         val Akka          = "2.1.0"
         val Scalatest     = "1.6.1"
-        val JUnit         = "4.5"
         val Jerkson       = "0.5.0"
         val Bouncycastle  = "1.47"
         val H2            = "1.3.168"
@@ -83,6 +85,5 @@ object TaricBuild extends Build {
 
     // ---- Test dependencies ----
       val scalaTest   = "org.scalatest"       %% "scalatest" % Version.Scalatest  % "test"
-      val jUnit       = "junit"               % "junit"                    % Version.JUnit      % "test"
     }
 }

@@ -2,20 +2,40 @@ package io.taric
 package services
 
 import akka.actor._
-import io.taric.models._
+import models._
 import io.taric.models.TaricKaParser._
 import io.taric.ImportApp.{commandBus, reportBus}
 import akka.routing.Listeners
-import java.net.URL
 import scala.concurrent.Future
 
-import java.io.InputStream
 import org.bouncycastle.openpgp.{PGPLiteralData, PGPCompressedData, PGPObjectFactory}
-import java.util.zip.GZIPInputStream
 import akka.pattern.pipe
 import akka.util.Timeout
 import scala.concurrent.duration._
 import org.apache.commons.net.ftp.FTPClient
+import java.util.zip.GZIPInputStream
+import java.io._
+import java.net.URL
+import java.security._
+import models.TaricKaStream
+import models.OpenStreams
+import models.BrowseFTP
+import models.ParseStream
+import models.UnzipStream
+import models.CurrentVersion
+import models.StoreCurrentVersion
+import models.PathFileName
+import models.DecryptStream
+import models.StreamsOpened
+import models.TaricCode
+import models.TaricPathPattern
+import models.TaricKaResource
+import models.StreamUnzipped
+import models.TaricUrls
+import models.BrowsingResult
+import models.TaricKaCode
+import models.StreamDecrypted
+
 
 class CommandBus extends Actor with ActorLogging with Listeners {
   def receive = listenerManagement orElse {
@@ -29,7 +49,8 @@ class ReportBus extends Actor with ActorLogging with Listeners {
   def receive = listenerManagement orElse {
     case ev: Report => gossip(ev)
     log.debug("Report bus {}.", ev)
-    case ar:AnyRef => log.error("Got a unkown object on the report bus: %s.".format(ar))
+    case ar:AnyRef =>
+      log.error("Got a unkown object on the report bus: %s.".format(ar))
   }
 }
 
@@ -77,6 +98,7 @@ class TaricFtpBrowser extends Actor with ActorLogging {
             val tot = getFiles(latestTot - 1, tpath, tpat)
             val dif = getFiles(latestTot, dpath, dpat)
             reportBus ! BrowsingResult( Option( (tot ++ dif).toList ), Option(ftpClient) )
+            commandBus ! StoreCurrentVersion( latestTot )
           } else {
             log.debug("Did not find any newer versions (latest: {}) than current version {}.", latestTot, ver)
           }
@@ -84,19 +106,19 @@ class TaricFtpBrowser extends Actor with ActorLogging {
       }
 
     case OpenStreams( files, ftpClient ) => {
-      log.debug("Opening Streams for taric files.")
+      log.debug("Opening Streams for taric files: {}.", files)
       implicit val timeout = Timeout(15 seconds)
-      log.error("We are missing the correct path for each corresponding file name. Magnus Andersson 2013-01-03")
+      implicit val client = ftpClient
       Future (
-        for ( PathFileName(path, fileName) <- files) yield Option( getFileStream( path, fileName ) )
-      ).map( StreamsOpened( _ ) ).pipeTo( reportBus )
+        for ( PathFileName(path, fileName) <- files ) yield getFileStream( path, fileName )
+      ).mapTo[List[InputStream]].map( StreamsOpened( _ ) ).pipeTo( reportBus )
     }
   }
 }
 
 
 class TaricReader extends Actor with ActorLogging {
-  private def parseFromURL( url:String ):InputStream = new URL(url).openStream
+  private[this] def parseFromURL( url:String ):InputStream = new URL(url).openStream
   implicit val timeout = Timeout(60 seconds)
 
   override def receive = {
@@ -106,8 +128,7 @@ class TaricReader extends Actor with ActorLogging {
 }
 
 class PgpDecryptor extends Actor with ActorLogging {
-  private def decryptPgp(messageStream:InputStream) = {
-    import java.security.Security
+  private[this] def decryptPgp(messageStream:InputStream):InputStream = {
     import org.bouncycastle.jce.provider.BouncyCastleProvider
     import org.bouncycastle.openpgp.PGPUtil
 
@@ -123,34 +144,71 @@ class PgpDecryptor extends Actor with ActorLogging {
   }
 
   override def receive = {
-    case DecryptStream( stream ) => Future( decryptPgp( stream ) ) map ( StreamDecrypted( _ ) ) pipeTo sender
+    case DecryptStream( stream ) =>
+      Future( decryptPgp( stream ) ).mapTo[InputStream].map( StreamDecrypted( _ ) ).pipeTo( sender )
   }
 }
 
 class GzipDecompressor extends Actor with ActorLogging {
-  private def unzipStream(stream:InputStream):InputStream = new GZIPInputStream(stream)
+  private[this] def unzipStream(stream:InputStream):InputStream = new GZIPInputStream(stream)
 
   override def receive = {
-    case UnzipStream( stream ) => Future( unzipStream( stream ) ) map ( StreamUnzipped( _ ) ) pipeTo sender
+    case UnzipStream( stream ) => Future( unzipStream( stream ) )
+      .mapTo[InputStream]
+      .map( StreamUnzipped( _ ) )
+      .pipeTo( sender )
   }
 }
 
 class TaricParser extends Actor with ActorLogging {
-  import java.io.{BufferedReader, InputStreamReader}
 
-  private def lineReader( stream: InputStream ):Stream[String] = {
-    val in = new BufferedReader(new InputStreamReader(System in))
-    Stream.continually(in readLine)
+  private[this] def lineReader( stream: InputStream ):Stream[String] = {
+    val reader = new BufferedReader( new InputStreamReader( stream ) )
+    Stream.continually(reader readLine)
+
   }
 
-  def parseKaCodes(stream:InputStream) =  for {
-    line <- lineReader(stream).drop(1)
+  private[this] def parseTaricStream( stream:InputStream ):Stream[TaricCode] = {
+    log.debug("Parsing Taric stream.")
+    val reader = lineReader( stream )
+    log.debug("Reader {}.", reader)
+    val streamType:String = reader.take(1).toList(0).drop(10).take(2)
+    log.debug("Stream type {}.", streamType)
+    routeParser(streamType, reader.drop(1))
+  }
+
+  private[this] def parseKaCodes(stream:Stream[String]) = for {
+    line <- stream
   } yield TaricCode(prodcode(line), startDate(line), endDate(line))
 
+  private[this] def routeParser(streamType:String, reader:Stream[String]) = streamType match {
+    case t @ "KA" =>
+      log.debug("Got a {} stream", t)
+      parseKaCodes(reader)
+    case t @ "KI" =>
+      log.debug("Got a {} stream", t)
+      Stream.empty
+    case t @ "KJ" =>
+      log.debug("Got a {} stream", t)
+      Stream.empty
+    case t @ "DA" =>
+      log.debug("Got a {} stream", t)
+      Stream.empty
+    case t @ "DI" =>
+      log.debug("Got a {} stream", t)
+      Stream.empty
+    case t @ "DJ" =>
+      log.debug("Got a {} stream", t)
+      Stream.empty
+    case _ =>
+      log.error("Got an unsupported stream type {}.", streamType)
+      Stream.empty
+  }
+
   override def receive = {
-    case TaricKaUnzippedStream( stream ) => Future( parseKaCodes( stream ) ) map
-      ( _.map(TaricKaCode( _ ) ) foreach
-        ( commandBus ! _ ) )
+    case ParseStream( stream ) =>
+      Future( parseTaricStream( stream ) ) map
+      ( _.map(TaricKaCode( _ ) ) foreach ( commandBus ! _ ) )
   }
 }
 
@@ -160,7 +218,7 @@ class Persist extends Actor with ActorLogging {
 
 class DebugLogger extends Actor with ActorLogging {
   override def receive = {
-    case TaricKaCode( taricCode ) if( taricCode.hs.startsWith("0304")) => {
+    case TaricKaCode( taricCode ) => {
       log.debug( taricCode toString )
     }
   }
