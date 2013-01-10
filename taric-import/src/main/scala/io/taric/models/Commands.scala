@@ -39,14 +39,7 @@ case class StreamUnzipped( stream:InputStream ) extends Report
 case class StreamsUnzipped( streams:List[InputStream] ) extends Report
 
 case class ParseStream( stream:InputStream ) extends Command
+case class StreamParsed( stream:Stream[TaricCode] ) extends Report
+case class StreamsParsed( streams:List[Stream[TaricCode]]) extends Report
 
 case object ImportFinished extends Command
-
-case class TaricTotalResourceFtp(url:String) extends Command
-case class TaricDiffResourceFtp(url:String) extends Command
-
-case class TaricKaResource(url:String) extends Command
-case class TaricKaStream(stream:InputStream) extends Command
-case class TaricKaDecryptedStream(stream: InputStream) extends Command
-case class TaricKaUnzippedStream(stream: GZIPInputStream) extends Command
-case class TaricKaCode(taricCode:TaricCode) extends Command

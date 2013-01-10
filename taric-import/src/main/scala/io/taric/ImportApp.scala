@@ -24,7 +24,6 @@ object ImportApp extends App {
   // ActorServices
   val systemRes = system.actorOf(Props[ApplicationResources], "app-resources")
   val taricBrowser = system.actorOf(Props[TaricFtpBrowser], "taric-ftp")
-  val taricReader = system.actorOf(Props[TaricReader], "taric-reader")
   val pgpDecryptor = system.actorOf(Props[PgpDecryptor], "pgp-decryptor")
   val gzipDecompressor = system.actorOf(Props[GzipDecompressor], "gzip-decompressor")
   val taricParser = system.actorOf(Props[TaricParser], "taric-parser")
@@ -44,7 +43,6 @@ object ImportApp extends App {
   // Register ActorServices with command bus
   commandBus ! Listen(systemRes)
   commandBus ! Listen(taricBrowser)
-  commandBus ! Listen(taricReader)
   commandBus ! Listen(pgpDecryptor)
   commandBus ! Listen(gzipDecompressor)
   commandBus ! Listen(taricParser)

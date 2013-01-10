@@ -7,20 +7,22 @@ import io.taric.models._
 import io.taric.ImportApp._
 import scala.concurrent.duration._
 import org.apache.commons.net.ftp.FTPClient
-import java.io.InputStream
+import java.io.{ InputStream }
 import akka.routing.Deafen
-import io.taric.models.FTPConnection
+import io.taric.models.OpenResources
 import io.taric.models.CurrentVersion
 import io.taric.models.BrowsingFtpForVersions
 import io.taric.models.TaricUrls
 import io.taric.models.BrowsingResult
 import akka.util.Timeout
 import akka.event.LoggingAdapter
-import concurrent.{Await, Future}
+import concurrent.{Promise, Await, Future}
 import scala.Option
 import org.bouncycastle.bcpg.InputStreamPacket
 import org.bouncycastle.jce.provider.JCEStreamCipher.DES_CFB8
 import util.{Failure, Success}
+import akka.util.Timeout
+import akka.util.Timeout._
 
 /**
  * Copyright Solvies AB 2012
@@ -30,10 +32,10 @@ import util.{Failure, Success}
  */
 object TaricHandler {
   def doCleanup(stateData:Data, nextStateData:Data)(implicit log:LoggingAdapter) = (stateData, nextStateData) match {
-    case (_, FTPConnection(client, _, streams)) =>
+    case (_, OpenResources(client, _, streams, _)) =>
       cleanup(client, streams)
       log.debug("Result from cleanup. Client open = {}.", isClientOpen(client) )
-    case (FTPConnection(client, _, streams), _) =>
+    case (OpenResources(client, _, streams, _), _) =>
       cleanup(client, streams)
       log.debug("Result from cleanup. Client open = {}.", isClientOpen(client) )
     case (_, _) =>
@@ -122,19 +124,19 @@ class TaricImportFSM extends Actor with FSM[State, Data] {
   when(BrowsingFTP) {
     case Event(BrowsingResult(files, client), data:BrowsingFtpForVersions) =>
       log.debug("Done browsing FTP streams.")
-      goto( OpeningStreams ) using FTPConnection( client, files ) forMax( 30 seconds )
+      goto( OpeningStreams ) using OpenResources( client, files ) forMax( 30 seconds )
   }
 
   onTransition {
     case BrowsingFTP -> OpeningStreams =>
       log.debug("Transitioning BrowsingFTP -> OpeningStreams")
       nextStateData match {
-        case FTPConnection( Some( client ), Some( files ), _ ) => commandBus ! OpenStreams( files, client )
+        case OpenResources( Some( client ), Some( files ), _, _ ) => commandBus ! OpenStreams( files, client )
       }
   }
 
   when(OpeningStreams) {
-    case Event( StreamsOpened( openStreams ), data:FTPConnection )=>
+    case Event( StreamsOpened( openStreams ), data:OpenResources )=>
       log.debug("Streams now open.")
       goto( Decrypting ) using( data.copy( streams = Option( openStreams ) ) ) forMax( 30 seconds )
   }
@@ -144,7 +146,7 @@ class TaricImportFSM extends Actor with FSM[State, Data] {
       implicit val timeout = Timeout(60 seconds)
       log.debug("Transitioning OpeningStreams -> Decrypting")
       nextStateData match {
-        case FTPConnection( _, _, Some( openStreams ) ) =>
+        case OpenResources( _, _, Some( openStreams ), _ ) =>
           convertToStreamsDecrypted( openStreams ) pipeTo( reportBus )
       }
   }
@@ -162,7 +164,7 @@ class TaricImportFSM extends Actor with FSM[State, Data] {
   }
 
   when(Decrypting) {
-    case Event( StreamsDecrypted( decryptedStreams ), data:FTPConnection )  =>
+    case Event( StreamsDecrypted( decryptedStreams ), data:OpenResources )  =>
       log.debug("Decrypting streams.")
       goto(Unzipping) using( data.copy( streams = Some( decryptedStreams ) ) ) forMax( 30 seconds )
   }
@@ -172,7 +174,7 @@ class TaricImportFSM extends Actor with FSM[State, Data] {
       implicit val timeout = Timeout(60 seconds)
       log.debug("Transitioning Decrypting -> Unzipping")
       nextStateData match {
-        case FTPConnection( _, _, Some( decryptedStreams ) ) =>
+        case OpenResources( _, _, Some( decryptedStreams ), _ ) =>
           aggregateUnzippedStreams( decryptedStreams ).mapTo[List[InputStream]]
             .map( StreamsUnzipped( _ ) ).pipeTo( reportBus )
       }
@@ -189,25 +191,44 @@ class TaricImportFSM extends Actor with FSM[State, Data] {
   }
 
   when(Unzipping) {
-    case Event( StreamsUnzipped( unzippedStreams ), data:FTPConnection ) =>
+    case Event( StreamsUnzipped( unzippedStreams ), data:OpenResources ) =>
       log.debug("Unzipping streams.")
       goto(Parsing) using ( data.copy( streams = Option( unzippedStreams ) ) ) forMax ( 60 seconds )
   }
 
   onTransition {
     case Unzipping -> Parsing =>
+      implicit val timeout = Timeout(60 seconds)
       log.debug("Transitioning Unzipping -> Parsing")
-      implicit val timeout = Timeout(100 seconds)
       nextStateData match {
-        case FTPConnection( _, _, Some( unzippedStreams )) =>
-          Future.sequence( unzippedStreams.map( commandBus ? ParseStream( _ ) ) )
+        case OpenResources( _, _, Some( unzippedStreams ), _) =>
+          convertToTaricCodeStreams( aggregateParsedStreams( unzippedStreams ) )
+            .map( StreamsParsed( _ ) ).pipeTo( reportBus )
       }
   }
 
+  private[this] def aggregateParsedStreams( unzippedStreams:List[InputStream])
+                                          (implicit timeout:akka.util.Timeout):List[Future[StreamParsed]] = for {
+    stream <- unzippedStreams
+  } yield ( commandBus ? ParseStream( stream ) ).mapTo[StreamParsed]
+
+  private[this] def convertToTaricCodeStreams(streamFutures:List[Future[StreamParsed]]):Future[List[Stream[TaricCode]]] = for {
+    parsedStreams <- Future.sequence( streamFutures ).mapTo[List[StreamParsed]]
+  } yield parsedStreams.map( _.stream )
+
   when(Parsing) {
-    case _ =>
-      log.debug("Parsing streams.")
-      goto(Persisting)
+    case Event( StreamsParsed( parsedStreams ), data:OpenResources ) =>
+      log.debug("Parsing Streams.")
+      goto(Persisting) using( data.copy( codes = Option( parsedStreams ) ) ) forMax( 60 seconds )
+  }
+
+  onTransition {
+    case Parsing -> Persisting =>
+    log.debug("Transitioning Parsing -> Persisting")
+    nextStateData match {
+      case OpenResources( _, _, _, Some( codes ) ) =>
+
+    }
   }
 
   when(Persisting) {
@@ -219,13 +240,14 @@ class TaricImportFSM extends Actor with FSM[State, Data] {
   whenUnhandled {
     case Event( StateTimeout, _ ) => goto( Idle )
     case Event(msg, data) => goto (Idle) using data
+    case Event(ImportFinished, data) => goto (Idle) using data
   }
 
   onTermination{
     case StopEvent(_, state, stateData) if (state != Idle) =>
       log.debug("Stopping FSM.")
       stateData match {
-        case FTPConnection(client, _, streams) =>
+        case OpenResources(client, _, streams, _) =>
           log.debug("Cleanup of connections.")
           TaricHandler.cleanup(client, streams)
       }

@@ -8,15 +8,14 @@ import io.taric.ImportApp._
 import util.Failure
 import models.{PathFileName, BrowsingResult}
 import akka.event.LoggingAdapter
-import java.io.InputStream
-
+import java.io.{ InputStream, InputStreamReader, BufferedReader }
 /**
  * Copyright Solvies AB 2012
  * User: magnus
  * Date: 2013-01-03
  * Time: 00:57
  */
-object FtpUtility {
+object IOLogic {
   def connectToFtp(f: FTPClient => Future[Unit])(implicit url:String, log:LoggingAdapter ) {
     val ftpUrl = new URL(url)
     implicit val ftpClient = new FTPClient()
@@ -71,5 +70,10 @@ object FtpUtility {
   def getFileStream(path:String, fileName:String)(implicit ftpClient:FTPClient):InputStream = {
     ftpClient changeWorkingDirectory(path)
     ftpClient retrieveFileStream(fileName)
+  }
+
+  def lineReader( stream: InputStream ):Stream[String] = {
+    val reader = new BufferedReader( new InputStreamReader( stream ) )
+    Stream.continually(reader readLine)
   }
 }
