@@ -42,19 +42,19 @@ case class NewTaricCode(code: String, oldCode:String, startDate:String) extends 
 object TaricParser {
   val codePattern = """(^\d{10}$|^\d{8}$)""".r
 
-  def routeParser(streamType:String, reader:Stream[String])(implicit log:LoggingAdapter):Stream[TaricCode] = streamType match {
-    case t @ ( "KA" | "DA" ) =>
+  def routeParser(streamType:String, reader:Stream[String])(implicit log:LoggingAdapter):(String, Stream[TaricCode]) = streamType match {
+    case t @ ( "KA" | "KI" ) =>
       log.debug("Got a {} stream", t)
-      TaricKAParser.parseKACodes(reader)
+      (t, TaricKAParser.parseKACodes(reader))
     case t @ ( "KI" | "DI" ) =>
       log.debug("Got a {} stream", t)
-      TaricKIParser.parseKICodes(reader)
+      (t, TaricKIParser.parseKICodes(reader))
     case t @ ( "KJ" | "DJ" ) =>
       log.debug("Got a {} stream", t)
-      TaricKJParser.parseKJCodes(reader)
+      (t, TaricKJParser.parseKJCodes(reader))
     case _ =>
       log.error("Got an unsupported stream type {}.", streamType)
-      Stream.empty
+      ("", Stream.empty)
   }
 
 }
@@ -62,6 +62,7 @@ object TaricParser {
 object TaricCommonParser {
   def recordType(line:String) = line.take(1).trim
   def taricType(line:String):String = line.drop(10).take(2).trim
+  def filterOnlyCodeChanges(line:String) = line.drop(12).take(2).trim == "80" && line.drop(32).take(2).trim == "80"
 }
 
 object TaricKAParser {
@@ -82,11 +83,10 @@ object TaricKIParser {
   private[this] def oldProdCode(line:String) = line.drop(2).take(10).trim
   private[this] def changeDate(line:String) = line.drop(14).take(8).trim
   private[this] def newProdCode(line:String) = line.drop(22).take(10).trim
-  private[this] def filterOnlyCodeChanges(line:String) = line.drop(12).take(2).trim == "80" && line.drop(32).take(2).trim == "80"
 
   def parseKICodes(stream:Stream[String]) = for {
     line <- stream
-    if( filterOnlyCodeChanges(line) )
+    if( TaricCommonParser.filterOnlyCodeChanges(line) )
   } yield ReplaceTaricCode( oldProdCode(line), changeDate(line:String), newProdCode(line) )
 }
 
@@ -94,10 +94,9 @@ object TaricKJParser {
   private[this] def prodCode(line:String) = line.drop(2).take(10).trim
   private[this] def newDate(line:String) = line.drop(14).take(8).trim
   private[this] def oldProdCode(line:String) = line.drop(22).take(10).trim
-  private[this] def filterOnlyCodeChanges(line:String) = Option(line).isDefined && line.drop(12).take(2).trim == "80" && line.drop(32).take(2).trim == "80"
 
   def parseKJCodes(stream:Stream[String]) = for {
     line <- stream
-    if( filterOnlyCodeChanges(line) )
+    if( TaricCommonParser.filterOnlyCodeChanges(line) )
   } yield NewTaricCode( prodCode(line), newDate(line:String), oldProdCode(line) )
 }

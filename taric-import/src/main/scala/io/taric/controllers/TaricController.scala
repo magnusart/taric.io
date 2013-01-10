@@ -18,8 +18,6 @@ import akka.util.Timeout
 import akka.event.LoggingAdapter
 import concurrent.{Promise, Await, Future}
 import scala.Option
-import org.bouncycastle.bcpg.InputStreamPacket
-import org.bouncycastle.jce.provider.JCEStreamCipher.DES_CFB8
 import util.{Failure, Success}
 import akka.util.Timeout
 import akka.util.Timeout._
@@ -202,6 +200,7 @@ class TaricImportFSM extends Actor with FSM[State, Data] {
       log.debug("Transitioning Unzipping -> Parsing")
       nextStateData match {
         case OpenResources( _, _, Some( unzippedStreams ), _) =>
+          log.debug("Got {} unzipped streams: {}.", unzippedStreams.length, unzippedStreams)
           convertToTaricCodeStreams( aggregateParsedStreams( unzippedStreams ) )
             .map( StreamsParsed( _ ) ).pipeTo( reportBus )
       }
@@ -214,22 +213,34 @@ class TaricImportFSM extends Actor with FSM[State, Data] {
 
   private[this] def convertToTaricCodeStreams(streamFutures:List[Future[StreamParsed]]):Future[List[Stream[TaricCode]]] = for {
     parsedStreams <- Future.sequence( streamFutures ).mapTo[List[StreamParsed]]
-  } yield parsedStreams.map( _.stream )
+  } yield sortStreamsParsed( parsedStreams ).map( _.stream )
+
+  private[this] def isBothKFile(l:String, r:String) = l.take(1) == "K" && r.take(1) == "K"
+  private[this] def isBothDFile(l:String, r:String) = l.take(1) == "D" && r.take(1) == "D"
+  private[this] def sameTypeSort(l:String, r:String) = l.drop(1) < r.drop(1)
+  private[this] def differentTypeSort(l:String, r:String) = l.take(1) > r.take(1) // Reversed Since D comes before K in the alphabet
+
+  private[this] def sortStreamsParsed( parsedStreams:List[StreamParsed] ) = parsedStreams.sortWith {
+    case (StreamParsed(l,_), StreamParsed(r,_)) if(isBothKFile(l,r) || isBothDFile(l,r)) => sameTypeSort(l,r)
+    case (StreamParsed(l,_), StreamParsed(r,_)) => differentTypeSort(l,r)
+  }
 
   when(Parsing) {
     case Event( StreamsParsed( parsedStreams ), data:OpenResources ) =>
       log.debug("Parsing Streams.")
-      goto(Persisting) using( data.copy( codes = Option( parsedStreams ) ) ) forMax( 60 seconds )
+      // We are now guaranteed to have the streams sorted in the right
+      goto(Persisting) using( data.copy( parsedStreams = Option( parsedStreams ) ) ) forMax( 60 seconds )
   }
 
   onTransition {
     case Parsing -> Persisting =>
     log.debug("Transitioning Parsing -> Persisting")
     nextStateData match {
-      case OpenResources( _, _, _, Some( codes ) ) =>
-
+      case OpenResources( _, _, _, Some( parsedStreams ) ) =>
+        commandBus ! PersistCodes( parsedStreams )
     }
   }
+
 
   when(Persisting) {
     case _ =>

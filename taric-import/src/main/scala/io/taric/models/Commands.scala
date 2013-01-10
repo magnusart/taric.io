@@ -39,7 +39,10 @@ case class StreamUnzipped( stream:InputStream ) extends Report
 case class StreamsUnzipped( streams:List[InputStream] ) extends Report
 
 case class ParseStream( stream:InputStream ) extends Command
-case class StreamParsed( stream:Stream[TaricCode] ) extends Report
+case class StreamParsed( streamType:String, stream:Stream[TaricCode] ) extends Report
 case class StreamsParsed( streams:List[Stream[TaricCode]]) extends Report
+
+case class PersistCodes( streams:List[Stream[TaricCode]] ) extends Command
+
 
 case object ImportFinished extends Command

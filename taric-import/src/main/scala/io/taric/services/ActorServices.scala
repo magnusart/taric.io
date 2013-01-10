@@ -139,7 +139,10 @@ class PgpDecryptor extends Actor with ActorLogging {
 
   override def receive = {
     case DecryptStream( stream ) =>
-      Future( decryptPgp( stream ) ).mapTo[InputStream].map( StreamDecrypted( _ ) ).pipeTo( sender )
+      Future( decryptPgp( stream ) )
+        .mapTo[InputStream]
+        .map( StreamDecrypted( _ ) )
+        .pipeTo( sender )
   }
 }
 
@@ -168,21 +171,24 @@ class TaricParser extends Actor with ActorLogging {
   override def receive = {
     case ParseStream( stream ) =>
       Future( parseTaricStream( stream ) )
-        .mapTo[Stream[TaricCode]]
-        .map( StreamParsed( _ ) )
+        .mapTo[(String, Stream[TaricCode])]
+        .map { case (stype, stream) => StreamParsed( stype, stream ) }
         .pipeTo( sender )
   }
 }
 
-class Persist extends Actor with ActorLogging {
+class SqlPersister extends Actor with ActorLogging {
   override def receive = {
-    case _ =>
-  }
-}
-
-class SqlLogger extends Actor with ActorLogging {
-  override def receive = {
-    case _ =>
+    case PersistCodes( streams ) =>
+      streams foreach {
+      stream => for {
+        code <- stream
+      } yield code match {
+        case e:ExistingTaricCode => log.debug("Existing taric code {}.", e)
+        case n:NewTaricCode => log.debug("New taric code {}.", n)
+        case r:ReplaceTaricCode => log.debug("Replace taric code {}.", r)
+      }
+    }
   }
 }
 

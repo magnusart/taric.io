@@ -26,4 +26,4 @@ case class BrowsingFtpForVersions(ver:Int, url:String, tot:TaricPathPattern, dif
 case class OpenResources(client:Option[FTPClient] = None,
                          fileName:Option[List[PathFileName]] = None,
                          streams:Option[List[InputStream]] = None,
-                         codes:Option[List[Stream[TaricCode]]] = None) extends Data
+                         parsedStreams:Option[List[Stream[TaricCode]]] = None) extends Data

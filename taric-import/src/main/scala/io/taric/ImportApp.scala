@@ -27,6 +27,7 @@ object ImportApp extends App {
   val pgpDecryptor = system.actorOf(Props[PgpDecryptor], "pgp-decryptor")
   val gzipDecompressor = system.actorOf(Props[GzipDecompressor], "gzip-decompressor")
   val taricParser = system.actorOf(Props[TaricParser], "taric-parser")
+  val sqlPersister = system.actorOf(Props[SqlPersister], "taric-sql-persister")
 
   // Routed ActorServices
   val taricDebugPrinter1 = system.actorOf(Props[DebugLogger], "debug-logger-1")
@@ -47,6 +48,7 @@ object ImportApp extends App {
   commandBus ! Listen(gzipDecompressor)
   commandBus ! Listen(taricParser)
   commandBus ! Listen(debugRouter)
+  commandBus ! Listen(sqlPersister)
 
   // Start scheduler
   (system scheduler) schedule(0 seconds, 60.seconds, reportBus, ReadyToStartImport)

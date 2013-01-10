@@ -19,7 +19,7 @@ object TaricBuild extends Build {
     base = file("."),
     settings = defaultSettings ++ buildSettings ++
     Seq(SbtStartScript.stage in Compile := Unit),
-    aggregate = Seq(timport)
+    aggregate = Seq(timport, core)
   )
 
   lazy val timport = Project(
@@ -30,9 +30,17 @@ object TaricBuild extends Build {
     SbtStartScript.startScriptForClassesSettings ++
     Seq(libraryDependencies ++= Dependencies.akkaComponent ++
                                 Dependencies.crypto ++
-                                //Dependencies.db ++
                                 Dependencies.io)
     )
+
+  lazy val core = Project(
+    id = "taric-core",
+    base = file("taric-core"),
+    dependencies = Seq(),
+    settings = jarSettings ++ defaultSettings ++ buildSettings ++ SbtOneJar.oneJarSettings ++
+      SbtStartScript.startScriptForClassesSettings ++
+      Seq(libraryDependencies ++= Dependencies.akkaComponent ++ Dependencies.db)
+  )
 
   lazy val defaultSettings = Defaults.defaultSettings ++ Seq(
     resolvers ++= Seq("Typesafe Releases Repo" at "http://repo.typesafe.com/typesafe/releases/",
@@ -55,7 +63,7 @@ object TaricBuild extends Build {
     import Dependency._
     val akkaComponent = Seq(akkaActor, akkaRemote, akkaTestKit)
     val crypto = Seq(bcprov, bcpkix, bcpg)
-    val db = Seq(h2, slick)
+    val db = Seq(redisClient)
     val io = Seq(commonsNet)
   }
 
@@ -63,11 +71,9 @@ object TaricBuild extends Build {
       object Version {
         val Akka          = "2.1.0"
         val Scalatest     = "1.6.1"
-        val Jerkson       = "0.5.0"
         val Bouncycastle  = "1.47"
-        val H2            = "1.3.168"
         val CommonsNet    = "3.1"
-        val Slick         = "1.0.0"
+        val RedisClient    = "2.9"
       }
 
       // ---- Application dependencies ----
@@ -77,9 +83,10 @@ object TaricBuild extends Build {
       val bcprov      = "org.bouncycastle" % "bcprov-jdk15on" % Version.Bouncycastle
       val bcpkix      = "org.bouncycastle" % "bcpkix-jdk15on" % Version.Bouncycastle
       val bcpg        = "org.bouncycastle" % "bcpg-jdk15on" % Version.Bouncycastle
-      val h2          = "com.h2database" % "h2" % Version.H2
-      val slick       = "com.typesafe" %% "slick" % Version.Slick
+      //val h2          = "com.h2database" % "h2" % Version.H2
+      //val slick       = "com.typesafe" %% "slick" % Version.Slick
       val commonsNet  = "commons-net" % "commons-net" % Version.CommonsNet
+      val redisClient  = "net.debasishg" %% "redisclient" % Version.RedisClient
 
 
 
