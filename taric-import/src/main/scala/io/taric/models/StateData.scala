@@ -1,6 +1,7 @@
 package io.taric.models
 import org.apache.commons.net.ftp.{FTPFile, FTPClient}
 import java.io.InputStream
+import scalax.io.LongTraversable
 
 /**
  * Copyright Solvies AB 2012
@@ -26,4 +27,4 @@ case class BrowsingFtpForVersions(ver:Int, url:String, tot:TaricPathPattern, dif
 case class OpenResources(client:Option[FTPClient] = None,
                          fileName:Option[List[PathFileName]] = None,
                          streams:Option[List[InputStream]] = None,
-                         parsedStreams:Option[List[Stream[TaricCode]]] = None) extends Data
+                         parsedStreams:Option[List[LongTraversable[TaricCode]]] = None) extends Data

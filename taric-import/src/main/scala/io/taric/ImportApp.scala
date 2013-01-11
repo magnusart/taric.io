@@ -15,6 +15,8 @@ object ImportApp extends App {
 
   val system = ActorSystem("TaricImportSystem", config)
 
+  system.log.info("Stared Actorsystem {} for Taric.io ImportApp.", system.name)
+
   val commandBus = system.actorOf(Props[CommandBus], "command-bus")
   val reportBus = system.actorOf(Props[ReportBus], "report-bus")
 
@@ -50,8 +52,14 @@ object ImportApp extends App {
   commandBus ! Listen(debugRouter)
   commandBus ! Listen(sqlPersister)
 
+  system.log.info("Created actors and message buses.")
+
+  system.log.info("Starting import scheduler.")
+
   // Start scheduler
   (system scheduler) schedule(0 seconds, 60.seconds, reportBus, ReadyToStartImport)
+
+  system.log.info("System ready.")
 
 }
 

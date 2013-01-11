@@ -6,10 +6,10 @@ import models._
 import io.taric.models.TaricKAParser._
 import io.taric.ImportApp.{commandBus, reportBus}
 import akka.routing.Listeners
-import scala.concurrent.Future
+import concurrent.{Await, Future}
 
 import org.bouncycastle.openpgp.{PGPLiteralData, PGPCompressedData, PGPObjectFactory}
-import akka.pattern.pipe
+import akka.pattern.{ pipe, ask }
 import akka.util.Timeout
 import scala.concurrent.duration._
 import org.apache.commons.net.ftp.FTPClient
@@ -35,6 +35,7 @@ import models.StreamDecrypted
 import models.TaricCode
 import utilities.IOLogic
 import akka.actor.Status.Failure
+import scala.io.Source
 
 class CommandBus extends Actor with ActorLogging with Listeners {
   def receive = listenerManagement orElse {
@@ -158,37 +159,60 @@ class GzipDecompressor extends Actor with ActorLogging {
 }
 
 class TaricParser extends Actor with ActorLogging {
-
+  import scalax.io._
+  import java.io.{ InputStreamReader, BufferedReader }
   implicit val logger = log
 
   private[this] def parseTaricStream( stream:InputStream ) = {
-    val reader = IOLogic.lineReader( stream )
-    val streamType:String = TaricCommonParser.taricType( reader.take(1).toList(0) )
+    log.debug("Converting stream {}.", stream)
+    val in = new BufferedReader( new InputStreamReader( stream ) )
+    val header = in.readLine // Buggy LongTraversable, cannot peek on one line and then continue elsewhere easily.
+    val reader:LongTraversable[String] = Resource.fromReader( in ).lines()
+    val streamType:String = TaricCommonParser.taricType( header )
     log.debug("Stream type {}.", streamType)
-    TaricParser.routeParser(streamType, reader.drop(1))
+    TaricParser.routeParser(streamType, reader)
   }
 
   override def receive = {
     case ParseStream( stream ) =>
       Future( parseTaricStream( stream ) )
-        .mapTo[(String, Stream[TaricCode])]
+        .mapTo[(String, LongTraversable[TaricCode])]
         .map { case (stype, stream) => StreamParsed( stype, stream ) }
         .pipeTo( sender )
   }
 }
 
 class SqlPersister extends Actor with ActorLogging {
+  import scalax.io._
+  import java.io.File
+
+  def filterCodes(hs:String) = hs.startsWith("03") || hs.startsWith("1603") || hs.startsWith("1604")
+
   override def receive = {
     case PersistCodes( streams ) =>
-      streams foreach {
-      stream => for {
-        code <- stream
-      } yield code match {
-        case e:ExistingTaricCode => log.debug("Existing taric code {}.", e)
-        case n:NewTaricCode => log.debug("New taric code {}.", n)
-        case r:ReplaceTaricCode => log.debug("Replace taric code {}.", r)
+      implicit val codec = Codec.UTF8
+      implicit val timeout = Timeout( 10 seconds )
+      val verFuture = commandBus ? FetchCurrentVersion
+      val CurrentVersion( ver ) = Await.result(verFuture, 10 seconds).asInstanceOf[CurrentVersion]
+      val fileName = s"import-$ver.sql"
+      val f = new File(fileName)
+      if( f.isFile ) f.delete()
+      log.debug("Using {} as filename", fileName)
+      val file = Resource.fromFile(fileName)
+      streams foreach { stream =>
+        val codes = for ( code:TaricCode <- stream if filterCodes(code.hs) ) yield code
+
+        codes foreach {
+          //PRDKOD_ID, PRDKOD_PRDKODTYP_ID, PRDKOD_HS, PRDKOD_HSSUB, PRDKOD_CN, PRDKOD_PRECISION, PRDKOD_STARTDATTID, PRDKOD_AKTIV, PRDKOD_BESKRIVNING, PRDKOD_UPPDATTID, PRDKOD_UPPANV
+          case code @ ExistingTaricCode(_, startDate, endDate) =>
+            file.write(s"INSERT INTO PRODUKTKOD VALUES(ID, 1, '${code.hs}', '${code.hsSub}', '${code.cn}', '${code.pres}', TO_DATE('$startDate', 'yyyyMMdd'), 'J', '', SYSDATE, 'taric-import');\n")
+            if(endDate.isDefined) file.write(s"INSERT INTO PRODUKTKOD VALUES(ID, 1, '${code.hs}', '${code.hsSub}', '${code.cn}', '${code.pres}', TO_DATE('$endDate.get', 'yyyyMMdd'), 'N', '', SYSDATE, 'taric-import');\n")
+          case NewTaricCode(oldCode, newCode, startDate) => log.debug("New taric code {}, replacing {} at {}", oldCode, newCode, startDate)
+          case ReplaceTaricCode(oldCode, newCode, newDate) => log.debug("Replace taric code {} with {} at {}", oldCode, newCode, newDate)
+          case u @ _ => log.error("Got unknown element {}", u)
+        }
       }
-    }
+      reportBus ! FinishedPersisting
   }
 }
 

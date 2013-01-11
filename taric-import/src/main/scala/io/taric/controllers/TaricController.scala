@@ -211,7 +211,7 @@ class TaricImportFSM extends Actor with FSM[State, Data] {
     stream <- unzippedStreams
   } yield ( commandBus ? ParseStream( stream ) ).mapTo[StreamParsed]
 
-  private[this] def convertToTaricCodeStreams(streamFutures:List[Future[StreamParsed]]):Future[List[Stream[TaricCode]]] = for {
+  private[this] def convertToTaricCodeStreams(streamFutures:List[Future[StreamParsed]]) = for {
     parsedStreams <- Future.sequence( streamFutures ).mapTo[List[StreamParsed]]
   } yield sortStreamsParsed( parsedStreams ).map( _.stream )
 
@@ -243,7 +243,7 @@ class TaricImportFSM extends Actor with FSM[State, Data] {
 
 
   when(Persisting) {
-    case _ =>
+    case Event(FinishedPersisting, data) =>
       log.debug("Persisting streams.")
       goto (Idle)
   }

@@ -8,7 +8,7 @@ import io.taric.ImportApp._
 import util.Failure
 import models.{PathFileName, BrowsingResult}
 import akka.event.LoggingAdapter
-import java.io.{ InputStream, InputStreamReader, BufferedReader }
+import java.io.{ InputStream }
 /**
  * Copyright Solvies AB 2012
  * User: magnus
@@ -70,10 +70,5 @@ object IOLogic {
   def getFileStream(path:String, fileName:String)(implicit ftpClient:FTPClient):InputStream = {
     ftpClient changeWorkingDirectory(path)
     ftpClient retrieveFileStream(fileName)
-  }
-
-  def lineReader( stream: InputStream ):Stream[String] = {
-    val reader = new BufferedReader( new InputStreamReader( stream ) )
-    Stream.continually(reader readLine)
   }
 }

@@ -4,6 +4,7 @@ import java.io.InputStream
 import java.util.zip.GZIPInputStream
 import org.apache.commons.net.ftp.{FTPFile, FTPClient}
 import org.bouncycastle.bcpg.InputStreamPacket
+import scalax.io.LongTraversable
 
 sealed trait Command
 sealed trait Report
@@ -39,10 +40,10 @@ case class StreamUnzipped( stream:InputStream ) extends Report
 case class StreamsUnzipped( streams:List[InputStream] ) extends Report
 
 case class ParseStream( stream:InputStream ) extends Command
-case class StreamParsed( streamType:String, stream:Stream[TaricCode] ) extends Report
-case class StreamsParsed( streams:List[Stream[TaricCode]]) extends Report
+case class StreamParsed( streamType:String, stream:LongTraversable[TaricCode] ) extends Report
+case class StreamsParsed( streams:List[LongTraversable[TaricCode]]) extends Report
 
-case class PersistCodes( streams:List[Stream[TaricCode]] ) extends Command
+case class PersistCodes( streams:List[LongTraversable[TaricCode]] ) extends Command
+case object FinishedPersisting extends Report
 
-
-case object ImportFinished extends Command
+case object ImportFinished extends Report
