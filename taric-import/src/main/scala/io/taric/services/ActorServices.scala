@@ -210,8 +210,8 @@ class SqlPersister extends Actor with ActorLogging {
         codes foreach {
           //PRDKOD_ID, PRDKOD_PRDKODTYP_ID, PRDKOD_HS, PRDKOD_HSSUB, PRDKOD_CN, PRDKOD_PRECISION, PRDKOD_STARTDATTID, PRDKOD_AKTIV, PRDKOD_BESKRIVNING, PRDKOD_UPPDATTID, PRDKOD_UPPANV
           case code @ ExistingTaricCode(_, startDate, endDate) =>
-            file.write(s"INSERT INTO PRODUKTKOD VALUES(ID, 1, '${code.hs}', '${code.hsSub}', '${code.cn}', '${code.pres}', TO_DATE('$startDate', 'yyyyMMdd'), 'J', '', SYSDATE, 'taric-import');\n")
-            if(endDate.isDefined) file.write(s"INSERT INTO PRODUKTKOD VALUES(ID, 1, '${code.hs}', '${code.hsSub}', '${code.cn}', '${code.pres}', TO_DATE('${endDate.get}', 'yyyyMMdd'), 'N', '', SYSDATE, 'taric-import');\n")
+            file.write(s"INSERT INTO PRODUKTKOD VALUES(PRDKOD_SEQ.NEXTVAL, 1, '${code.hs}', '${code.hsSub}', '${code.cn}', '${code.pres}', TO_DATE('$startDate', 'yyyyMMdd'), 'N', 'TARIC', SYSDATE, 'taric-import');\n")
+            if(endDate.isDefined) file.write(s"INSERT INTO PRODUKTKOD VALUES(PRDKOD_SEQ.NEXTVAL, 1, '${code.hs}', '${code.hsSub}', '${code.cn}', '${code.pres}', TO_DATE('${endDate.get}', 'yyyyMMdd'), 'N', 'TARIC', SYSDATE, 'taric-import');\n")
           case NewTaricCode(oldCode, newCode, startDate) => log.debug("New taric code {}, replacing {} at {}", oldCode, newCode, startDate)
           case ReplaceTaricCode(oldCode, newCode, newDate) => log.debug("Replace taric code {} with {} at {}", oldCode, newCode, newDate)
           case u @ _ => log.error("Got unknown element {}", u)
