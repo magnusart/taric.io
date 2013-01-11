@@ -36,6 +36,7 @@ import models.TaricCode
 import utilities.IOLogic
 import akka.actor.Status.Failure
 import scala.io.Source
+import org.joda.time.DateTime
 
 class CommandBus extends Actor with ActorLogging with Listeners {
   def receive = listenerManagement orElse {
@@ -196,7 +197,11 @@ class SqlPersister extends Actor with ActorLogging {
       val CurrentVersion( ver ) = Await.result(verFuture, 10 seconds).asInstanceOf[CurrentVersion]
       val fileName = s"import-$ver.sql"
       val f = new File(fileName)
-      if( f.isFile ) f.delete()
+      if( f.isFile ) {
+        val oldFileName = fileName.dropRight(4) + "-" + DateTime.now().toString("yyyy-MM-dd_hhssSSS") + ".sql"
+        f.renameTo(new File( oldFileName ) )
+        log.debug("Renaming file {} to {}.", fileName, oldFileName)
+      }
       log.debug("Using {} as filename", fileName)
       val file = Resource.fromFile(fileName)
       streams foreach { stream =>
