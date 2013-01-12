@@ -1,4 +1,13 @@
-This is your new Play 2.0 application
+Taric IO
 =====================================
+This software imports, decrypts, unzips and parses TARIC product codes into a easily usable format. It does this by using the Swedish Custom Agency's tariff codes using the TARIC File disitribution (http://www.tullverket.se/sokordao/t/taric/taricfildistribution.4.4ab1598c11632f3ba9280001793.html, in Swedish).
 
-This file will be packaged with your application, when using `play dist`.
+The product codes originate from the the European Comission TARIC database (http://ec.europa.eu/taxation_customs/customs/customs_duties/tariff_aspects/customs_tariff/index_en.htm).
+
+If you have questions about this software you can contact me at magnus.andersson@solvies.se.
+
+Licensing
+=====================================
+This software is realeased under the Apache Common License v2.0
+
+Please see the LICENSE and NOTICE files for more information.
