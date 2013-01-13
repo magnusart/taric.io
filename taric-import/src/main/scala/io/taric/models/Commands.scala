@@ -43,7 +43,8 @@ case class ParseStream( stream:InputStream ) extends Command
 case class StreamParsed( streamType:String, stream:LongTraversable[TaricCode] ) extends Report
 case class StreamsParsed( streams:List[LongTraversable[TaricCode]]) extends Report
 
-case class PersistCodes( streams:List[LongTraversable[TaricCode]] ) extends Command
+case class PersistCodes( stream:List[LongTraversable[TaricCode]] ) extends Command
+case class PersistText( stream:InputStream ) extends Command
 case object FinishedPersisting extends Report
 
 case object ImportFinished extends Report

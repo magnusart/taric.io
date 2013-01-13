@@ -28,9 +28,9 @@ object ImportApp extends App {
   val taricBrowser = system.actorOf(Props[TaricFtpBrowser], "taric-ftp")
   val pgpDecryptor = system.actorOf(Props[PgpDecryptor], "pgp-decryptor")
   val gzipDecompressor = system.actorOf(Props[GzipDecompressor], "gzip-decompressor")
-  val taricParser = system.actorOf(Props[TaricParser], "taric-parser")
+  val taricParser = system.actorOf(Props[TaricStreamParser], "taric-parser")
   val sqlPersister = system.actorOf(Props[SqlPersister], "taric-sql-persister")
-
+  val plainTextPersister = system.actorOf(Props[PlainTextPersister], "plain-text-persister")
   // Routed ActorServices
   val taricDebugPrinter1 = system.actorOf(Props[DebugLogger], "debug-logger-1")
   val taricDebugPrinter2 = system.actorOf(Props[DebugLogger], "debug-logger-2")
@@ -51,6 +51,7 @@ object ImportApp extends App {
   commandBus ! Listen(taricParser)
   commandBus ! Listen(debugRouter)
   commandBus ! Listen(sqlPersister)
+  commandBus ! Listen(plainTextPersister)
 
   system.log.info("Created actors and message buses.")
 

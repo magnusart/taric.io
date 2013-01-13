@@ -31,7 +31,8 @@ object TaricBuild extends Build {
       Seq(libraryDependencies ++= Dependencies.akkaComponent ++
         Dependencies.crypto ++
         Dependencies.io ++
-        Dependencies.date)
+        Dependencies.date ++
+        Dependencies.test)
   )
 
   lazy val core = Project(
@@ -40,7 +41,10 @@ object TaricBuild extends Build {
     dependencies = Seq(),
     settings = jarSettings ++ defaultSettings ++ buildSettings ++ SbtOneJar.oneJarSettings ++
       SbtStartScript.startScriptForClassesSettings ++
-      Seq(libraryDependencies ++= Dependencies.akkaComponent ++ Dependencies.db)
+      Seq(libraryDependencies ++=
+        Dependencies.akkaComponent ++
+        Dependencies.db ++
+        Dependencies.test)
   )
 
   lazy val defaultSettings = Defaults.defaultSettings ++ Seq(
@@ -48,7 +52,8 @@ object TaricBuild extends Build {
       "Typesafe Snapshot Repo" at "http://repo.typesafe.com/typesafe/snapshots/",
       "Central Repo" at "http://repo1.maven.org/maven2/",
       "Scala-Tools Maven2 Releases Repository" at "http://scala-tools.org/repo-releases",
-      "Codahale Repo" at "http://repo.codahale.com"),
+      "Codahale Repo" at "http://repo.codahale.com",
+      "Sonatype Repo" at "http://oss.sonatype.org/content/repositories/releases/"),
 
     // compile options
     scalacOptions ++= Seq("-encoding", "UTF-8", "-optimise", "-deprecation", "-unchecked"),
@@ -69,13 +74,15 @@ object TaricBuild extends Build {
     val db = Seq(redisClient)
     val io = Seq(commonsNet, scalaIO)
     val date = Seq(scalaTime)
+    val test = Seq(akkaTestKit, scalaTest, scalaMock)
   }
 
   object Dependency {
 
     object Version {
       val Akka = "2.1.0"
-      val Scalatest = "1.6.1"
+      val ScalaTest = "2.0.M6-SNAP5"
+      val ScalaMock = "3.0"
       val Bouncycastle = "1.47"
       val CommonsNet = "3.1"
       val RedisClient = "2.9"
@@ -86,7 +93,6 @@ object TaricBuild extends Build {
     // ---- Application dependencies ----
     val akkaActor = "com.typesafe.akka" %% "akka-actor" % Version.Akka
     val akkaRemote = "com.typesafe.akka" %% "akka-remote" % Version.Akka
-    val akkaTestKit = "com.typesafe.akka" %% "akka-testkit" % Version.Akka
     val bcprov = "org.bouncycastle" % "bcprov-jdk15on" % Version.Bouncycastle
     val bcpkix = "org.bouncycastle" % "bcpkix-jdk15on" % Version.Bouncycastle
     val bcpg = "org.bouncycastle" % "bcpg-jdk15on" % Version.Bouncycastle
@@ -96,7 +102,9 @@ object TaricBuild extends Build {
     val scalaTime = "org.scalaj" % "scalaj-time_2.10.0-M7" % Version.ScalaTime
 
     // ---- Test dependencies ----
-    val scalaTest = "org.scalatest" %% "scalatest" % Version.Scalatest % "test"
+    val akkaTestKit = "com.typesafe.akka" %% "akka-testkit" % Version.Akka % "test"
+    val scalaTest = "org.scalatest" %% "scalatest" % Version.ScalaTest % "test"
+    val scalaMock = "org.scalamock" %% "scalamock-scalatest-support" % Version.ScalaMock % "test"
   }
 
 }

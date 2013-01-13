@@ -3,7 +3,6 @@ package services
 
 import akka.actor._
 import models._
-import io.taric.models.TaricKAParser._
 import io.taric.ImportApp.{commandBus, reportBus}
 import akka.routing.Listeners
 import concurrent.{Await, Future}
@@ -15,28 +14,30 @@ import scala.concurrent.duration._
 import org.apache.commons.net.ftp.FTPClient
 import java.util.zip.GZIPInputStream
 import java.io._
-import java.net.URL
 import java.security._
-import models.OpenStreams
+import akka.actor.Status.Failure
+import org.joda.time.DateTime
+import utilities.IOLogic
 import models.BrowseFTP
-import models.ParseStream
 import models.UnzipStream
-import models.CurrentVersion
-import models.StoreCurrentVersion
+import akka.actor.Status.Failure
+import models.NewTaricCode
 import models.PathFileName
 import models.DecryptStream
-import models.StreamsOpened
+import models.BrowsingResult
+import models.OpenStreams
+import models.ParseStream
 import models.ExistingTaricCode
+import models.CurrentVersion
+import models.ReplaceTaricCode
+import models.StoreCurrentVersion
+import models.PersistText
+import models.StreamsOpened
+import models.PersistCodes
 import models.TaricPathPattern
 import models.StreamUnzipped
 import models.TaricUrls
-import models.BrowsingResult
 import models.StreamDecrypted
-import models.TaricCode
-import utilities.IOLogic
-import akka.actor.Status.Failure
-import scala.io.Source
-import org.joda.time.DateTime
 
 class CommandBus extends Actor with ActorLogging with Listeners {
   def receive = listenerManagement orElse {
@@ -159,65 +160,85 @@ class GzipDecompressor extends Actor with ActorLogging {
   }
 }
 
-class TaricParser extends Actor with ActorLogging {
+class TaricStreamParser extends Actor with ActorLogging {
   import scalax.io._
   import java.io.{ InputStreamReader, BufferedReader }
   implicit val logger = log
 
   private[this] def parseTaricStream( stream:InputStream ) = {
-    log.debug("Converting stream {}.", stream)
-    val in = new BufferedReader( new InputStreamReader( stream ) )
-    val header = in.readLine // Buggy LongTraversable, cannot peek on one line and then continue elsewhere easily.
-    val reader:LongTraversable[String] = Resource.fromReader( in ).lines()
-    val streamType:String = TaricCommonParser.taricType( header )
+    val header = IOLogic.readHeaderLine( stream )
+    val reader = IOLogic.getReader( stream )
+
+    val streamType:String = TaricParser.taricPostType( header )
+
     log.debug("Stream type {}.", streamType)
+
     TaricParser.routeParser(streamType, reader)
   }
 
   override def receive = {
     case ParseStream( stream ) =>
+      //commandBus ! PersistText( stream )
       Future( parseTaricStream( stream ) )
         .mapTo[(String, LongTraversable[TaricCode])]
-        .map { case (stype, stream) => StreamParsed( stype, stream ) }
+        .map { case (stype, in) => StreamParsed( stype, in ) }
         .pipeTo( sender )
+  }
+}
+
+class PlainTextPersister extends Actor with ActorLogging {
+  import scalax.io._
+  import java.io.{ InputStreamReader, BufferedReader }
+
+  def receive = {
+    case PersistText( stream ) =>
+      log.debug(s"Persisting $stream as plain text.")
+      val in = new BufferedReader( new InputStreamReader( stream ) )
+      val out = Resource.fromFile ( "out.taric"  )
+      val reader:LongTraversable[String] = Resource.fromReader( in ).lines()
+      out writeStrings( reader, "\n" )
   }
 }
 
 class SqlPersister extends Actor with ActorLogging {
   import scalax.io._
   import java.io.File
+  import TaricCode._
+  import SqlExpressionEvaluator._
 
-  def filterCodes(hs:String) = hs.startsWith("03") || hs.startsWith("1603") || hs.startsWith("1604")
+  private[this] def filterCodes(hs:String) = hs.startsWith("03") || hs.startsWith("1604") || hs.startsWith("1605")
+  private[this] def getFile(ver:Int) = {
+    val fileName = s"import-$ver.sql"
+     val f = new File(fileName)
+    if( f.isFile ) {
+      val oldFileName = fileName.dropRight(4) + "-" + DateTime.now().toString("yyyy-MM-dd_hhssSSS") + ".sql"
+      f.renameTo(new File( oldFileName ) )
+      log.debug("Renaming file {} to {}.", fileName, oldFileName)
+    }
+    log.debug("Using {} as filename", fileName)
+    Resource.fromFile(fileName)
+  }
 
   override def receive = {
     case PersistCodes( streams ) =>
       implicit val codec = Codec.UTF8
-      implicit val timeout = Timeout( 10 seconds )
+      implicit val t1 = Timeout( 1 seconds )
       val verFuture = commandBus ? FetchCurrentVersion
-      val CurrentVersion( ver ) = Await.result(verFuture, 10 seconds).asInstanceOf[CurrentVersion]
-      val fileName = s"import-$ver.sql"
-      val f = new File(fileName)
-      if( f.isFile ) {
-        val oldFileName = fileName.dropRight(4) + "-" + DateTime.now().toString("yyyy-MM-dd_hhssSSS") + ".sql"
-        f.renameTo(new File( oldFileName ) )
-        log.debug("Renaming file {} to {}.", fileName, oldFileName)
-      }
-      log.debug("Using {} as filename", fileName)
-      val file = Resource.fromFile(fileName)
-      streams foreach { stream =>
-        val codes = for ( code:TaricCode <- stream if filterCodes(code.hs) ) yield code
+      val CurrentVersion( ver ) = Await.result(verFuture, 1 seconds).asInstanceOf[CurrentVersion]
 
-        codes foreach {
-          //PRDKOD_ID, PRDKOD_PRDKODTYP_ID, PRDKOD_HS, PRDKOD_HSSUB, PRDKOD_CN, PRDKOD_PRECISION, PRDKOD_STARTDATTID, PRDKOD_AKTIV, PRDKOD_BESKRIVNING, PRDKOD_UPPDATTID, PRDKOD_UPPANV
-          case code @ ExistingTaricCode(_, startDate, endDate) =>
-            file.write(s"INSERT INTO PRODUKTKOD VALUES(PRDKOD_SEQ.NEXTVAL, 1, '${code.hs}', '${code.hsSub}', '${code.cn}', '${code.pres}', TO_DATE('$startDate', 'yyyyMMdd'), 'N', 'TARIC', SYSDATE, 'taric-import');\n")
-            if(endDate.isDefined) file.write(s"INSERT INTO PRODUKTKOD VALUES(PRDKOD_SEQ.NEXTVAL, 1, '${code.hs}', '${code.hsSub}', '${code.cn}', '${code.pres}', TO_DATE('${endDate.get}', 'yyyyMMdd'), 'N', 'TARIC', SYSDATE, 'taric-import');\n")
-          case NewTaricCode(oldCode, newCode, startDate) => log.debug("New taric code {}, replacing {} at {}", oldCode, newCode, startDate)
-          case ReplaceTaricCode(oldCode, newCode, newDate) => log.debug("Replace taric code {} with {} at {}", oldCode, newCode, newDate)
-          case u @ _ => log.error("Got unknown element {}", u)
-        }
+      val stream = streams(0)
+      val sqls = for {
+        code:TaricCode <- stream
+        if ( filterCodes(code.hs) )
+      } yield asSqlString( code )
+
+      implicit val t2 = Timeout(30 seconds)
+      log.debug(s"Got a list of SQL-strings: $sqls.")
+      Future {
+        val out = getFile( ver )
+        sqls foreach( out.write( _ ) )
+        reportBus ! FinishedPersisting
       }
-      reportBus ! FinishedPersisting
   }
 }
 

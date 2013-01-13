@@ -8,7 +8,10 @@ import io.taric.ImportApp._
 import util.Failure
 import models.{PathFileName, BrowsingResult}
 import akka.event.LoggingAdapter
-import java.io.{ InputStream }
+import java.io.{SequenceInputStream, InputStreamReader, BufferedReader, InputStream}
+import scalax.io.{Resource, LongTraversable}
+import collection.GenTraversable
+
 /**
  * Copyright Solvies AB 2012
  * User: magnus
@@ -16,6 +19,18 @@ import java.io.{ InputStream }
  * Time: 00:57
  */
 object IOLogic {
+
+  implicit def toRichInputStream(str: InputStream) = new RichInputStream(str)
+
+  class RichInputStream(str: InputStream) {
+    def ++(str2: InputStream): InputStream = new SequenceInputStream(str, str2)
+  }
+
+
+  // Problematic LongTraversable, cannot peek on one line and then continue elsewhere easily?
+  def readHeaderLine(stream: InputStream):String = new BufferedReader( new InputStreamReader( stream ) ).readLine()
+  def getReader(stream: InputStream):LongTraversable[String] = Resource.fromReader( new BufferedReader( new InputStreamReader( stream ) ) ).lines()
+
   def connectToFtp(f: FTPClient => Future[Unit])(implicit url:String, log:LoggingAdapter ) {
     val ftpUrl = new URL(url)
     implicit val ftpClient = new FTPClient()
