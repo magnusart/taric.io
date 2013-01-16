@@ -2,10 +2,10 @@ package io.taric
 package services
 
 import akka.actor._
-import models._
+import domains._
 import io.taric.ImportApp.{commandBus, reportBus}
 import akka.routing.Listeners
-import concurrent.{Await, Future}
+import concurrent.{Future, Await}
 
 import org.bouncycastle.openpgp.{PGPLiteralData, PGPCompressedData, PGPObjectFactory}
 import akka.pattern.{ pipe, ask }
@@ -15,29 +15,55 @@ import org.apache.commons.net.ftp.FTPClient
 import java.util.zip.GZIPInputStream
 import java.io._
 import java.security._
-import akka.actor.Status.Failure
 import org.joda.time.DateTime
 import utilities.IOLogic
-import models.BrowseFTP
-import models.UnzipStream
+import domains.BrowseFTP
+import domains.UnzipStream
 import akka.actor.Status.Failure
-import models.NewTaricCode
-import models.PathFileName
-import models.DecryptStream
-import models.BrowsingResult
-import models.OpenStreams
-import models.ParseStream
-import models.ExistingTaricCode
-import models.CurrentVersion
-import models.ReplaceTaricCode
-import models.StoreCurrentVersion
-import models.PersistText
-import models.StreamsOpened
-import models.PersistCodes
-import models.TaricPathPattern
-import models.StreamUnzipped
-import models.TaricUrls
-import models.StreamDecrypted
+import domains.PathFileName
+import domains.DecryptStream
+import domains.BrowsingResult
+import domains.OpenStreams
+import domains.ParseStream
+import domains.CurrentVersion
+import domains.StoreCurrentVersion
+import domains.PersistText
+import domains.StreamsOpened
+import domains.PersistCodes
+import domains.TaricPathPattern
+import domains.StreamUnzipped
+import domains.TaricUrls
+import domains.StreamDecrypted
+import services.RemoteResources._
+import services.RemoteResources.ComputeLatestVersion
+import domains.BrowseFTP
+import domains.UnzipStream
+import services.RemoteResources.FetchRemoteResource
+import akka.actor.Status.Failure
+import domains.PathFileName
+import domains.DecryptStream
+import domains.BrowsingResult
+import domains.OpenStreams
+import domains.ParseStream
+import domains.FlatFileRecord
+import services.RemoteResources.LatestVersionReport
+import domains.CurrentVersion
+import domains.StoreCurrentVersion
+import domains.StreamParsed
+import domains.PersistText
+import domains.StreamsOpened
+import domains.PersistCodes
+import domains.TaricPathPattern
+import domains.StreamUnzipped
+import domains.TaricUrls
+import domains.StreamDecrypted
+
+trait Command
+trait Report
+
+trait ReportProducer {
+  def reportBus:ActorRef
+}
 
 class CommandBus extends Actor with ActorLogging with Listeners {
   def receive = listenerManagement orElse {
@@ -57,6 +83,50 @@ class ReportBus extends Actor with ActorLogging with Listeners {
   }
 }
 
+
+class RemoteResources(implicit dep:ResourcesDependencies) extends Actor with ActorLogging {
+  import LocatingTaricFiles._
+  import TaricFlatFileParser._
+
+  val reportBus = dep.reportBus
+
+  private[this] def fetchFileListing( pattern:String, url:String ) = for {
+    fileNames <- dep.fetchFileListing( url )
+  } yield fileNames.filter( filterFileType( pattern, _ ) )
+
+  private[this] def fetchRemoteFileLines( url:String, fileName:String ) = for {
+    file <- dep.fetchFilePlainTextLines( url, fileName )
+  } yield file.map( FlatFileRecord( _  ) )
+
+  private[this] def convertToLinesReports( futureLines:Future[Stream[FlatFileRecord]] ) = for {
+    lines <- futureLines
+  } yield lines.map( FlatFileRecordReport( _ ) )
+
+  private[this] def emitAll( futureRecords:Future[Stream[FlatFileRecordReport]] ) = for {
+    records <- futureRecords
+  } yield records.foreach( reportBus ! _ )
+
+  def receive = {
+    case ComputeLatestVersion( pattern, url ) => fetchFileListing( pattern, url )
+      .map( latestFileVersion( _ ) )
+      .map ( LatestVersionReport( _ ) )
+      .pipeTo( reportBus )
+
+    case FetchRemoteResource( url, fileName ) => emitAll( convertToLinesReports( fetchRemoteFileLines( url, fileName ) ) )
+  }
+
+}
+
+object RemoteResources {
+  trait ResourcesDependencies extends ReportProducer with FetchRemoteResources
+
+  case class ComputeLatestVersion( pattern:String, url:String ) extends Command
+  case class LatestVersionReport( ver:Int ) extends Report
+
+  case class FetchRemoteResource( url:String, fileName:String ) extends Command
+  case class FlatFileRecordReport( record: FlatFileRecord ) extends Report
+}
+
 class ApplicationResources extends Actor with ActorLogging {
   var currentVersion = 0
 
@@ -67,7 +137,7 @@ class ApplicationResources extends Actor with ActorLogging {
   val totalPattern = """^\d{4}_(KA|KI|KJ).tot.gz.pgp"""
 
   val diffPath = "/www1/distr/taric/flt/dif/"
-  val diffPattern = """^\d{4}_(DA|DI|DJ).tot.gz.pgp"""
+  val diffPattern = """^\d{4}_(DA|DI|DJ).dif.gz.pgp"""
 
   def receive = {
     // TODO 2012-12-31 (Magnus Andersson) Store this in AppDB or filesystem
@@ -162,18 +232,14 @@ class GzipDecompressor extends Actor with ActorLogging {
 
 class TaricStreamParser extends Actor with ActorLogging {
   import scalax.io._
-  import java.io.{ InputStreamReader, BufferedReader }
   implicit val logger = log
 
   private[this] def parseTaricStream( stream:InputStream ) = {
     val header = IOLogic.readHeaderLine( stream )
     val reader = IOLogic.getReader( stream )
 
-    val streamType:String = TaricParser.taricPostType( header )
-
-    log.debug("Stream type {}.", streamType)
-
-    TaricParser.routeParser(streamType, reader)
+    // FIXME Use implict conversion instead
+    //TaricFlatFileParser.routeParser(streamType, reader)
   }
 
   override def receive = {
@@ -204,7 +270,7 @@ class SqlPersister extends Actor with ActorLogging {
   import scalax.io._
   import java.io.File
   import TaricCode._
-  import SqlExpressionEvaluator._
+  import SqlExpression._
 
   private[this] def filterCodes(hs:String) = hs.startsWith("03") || hs.startsWith("1604") || hs.startsWith("1605")
   private[this] def getFile(ver:Int) = {

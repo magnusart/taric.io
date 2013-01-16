@@ -3,17 +3,17 @@ package controllers
 
 import akka.actor.{Actor, FSM}
 import akka.pattern.{ask, pipe}
-import io.taric.models._
+import io.taric.domains._
 import io.taric.ImportApp._
 import scala.concurrent.duration._
 import org.apache.commons.net.ftp.FTPClient
 import java.io.{ InputStream }
 import akka.routing.Deafen
-import io.taric.models.OpenResources
-import io.taric.models.CurrentVersion
-import io.taric.models.BrowsingFtpForVersions
-import io.taric.models.TaricUrls
-import io.taric.models.BrowsingResult
+import io.taric.domains.OpenResources
+import io.taric.domains.CurrentVersion
+import io.taric.domains.BrowsingFtpForVersions
+import io.taric.domains.TaricUrls
+import io.taric.domains.BrowsingResult
 import akka.util.Timeout
 import akka.event.LoggingAdapter
 import concurrent.{Promise, Await, Future}

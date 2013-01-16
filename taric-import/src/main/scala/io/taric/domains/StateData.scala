@@ -1,5 +1,7 @@
-package io.taric.models
-import org.apache.commons.net.ftp.{FTPFile, FTPClient}
+package io.taric
+package domains
+
+import org.apache.commons.net.ftp.FTPClient
 import java.io.InputStream
 import scalax.io.LongTraversable
 

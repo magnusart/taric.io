@@ -6,7 +6,7 @@ import concurrent.Future
 import java.net.URL
 import io.taric.ImportApp._
 import util.Failure
-import models.{PathFileName, BrowsingResult}
+import domains.{PathFileName, BrowsingResult}
 import akka.event.LoggingAdapter
 import java.io.{SequenceInputStream, InputStreamReader, BufferedReader, InputStream}
 import scalax.io.{Resource, LongTraversable}
@@ -27,7 +27,7 @@ object IOLogic {
   }
 
 
-  // Problematic LongTraversable, cannot peek on one line and then continue elsewhere easily?
+  // Problematic LongTraversable, cannot peek on one record and then continue elsewhere easily?
   def readHeaderLine(stream: InputStream):String = new BufferedReader( new InputStreamReader( stream ) ).readLine()
   def getReader(stream: InputStream):LongTraversable[String] = Resource.fromReader( new BufferedReader( new InputStreamReader( stream ) ) ).lines()
 

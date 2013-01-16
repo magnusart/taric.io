@@ -1,13 +1,12 @@
-package io.taric.models
+package io.taric.domains
 
 import java.io.InputStream
 import java.util.zip.GZIPInputStream
 import org.apache.commons.net.ftp.{FTPFile, FTPClient}
 import org.bouncycastle.bcpg.InputStreamPacket
 import scalax.io.LongTraversable
+import io.taric.services.{Report, Command}
 
-sealed trait Command
-sealed trait Report
 
 case object RegisterFSM
 // Idle

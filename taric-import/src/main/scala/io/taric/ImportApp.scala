@@ -4,7 +4,7 @@ import akka.actor.{ActorRef, Props, ActorSystem}
 import com.typesafe.config._
 import akka.routing.RoundRobinRouter
 import scala.concurrent.duration._
-import io.taric.models._
+import io.taric.domains._
 import services._
 import akka.routing.Listen
 import controllers.TaricImportFSM
@@ -63,4 +63,3 @@ object ImportApp extends App {
   system.log.info("System ready.")
 
 }
-
