@@ -1,6 +1,5 @@
 package io.taric
 
-import akka.actor.ActorSystem
 
 /**
  * File created: 2013-01-15 01:38

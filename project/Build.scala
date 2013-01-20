@@ -69,7 +69,7 @@ object TaricBuild extends Build {
 
     import Dependency._
 
-    val akkaComponent = Seq(akkaActor, akkaRemote, akkaTestKit)
+    val akkaComponent = Seq(akkaActor, akkaRemote, akkaTestKit, commonsCodec)
     val crypto = Seq(bcprov, bcpkix, bcpg)
     val db = Seq(redisClient)
     val io = Seq(commonsNet, scalaIO)
@@ -85,6 +85,7 @@ object TaricBuild extends Build {
       val ScalaMock = "3.0"
       val Bouncycastle = "1.47"
       val CommonsNet = "3.1"
+      val CommonsCodec = "1.7"
       val RedisClient = "2.9"
       val ScalaIO = "0.4.1"
       val ScalaTime = "0.6"
@@ -97,6 +98,8 @@ object TaricBuild extends Build {
     val bcpkix = "org.bouncycastle" % "bcpkix-jdk15on" % Version.Bouncycastle
     val bcpg = "org.bouncycastle" % "bcpg-jdk15on" % Version.Bouncycastle
     val commonsNet = "commons-net" % "commons-net" % Version.CommonsNet
+    val commonsCodec = "commons-codec" % "commons-codec" % Version.CommonsCodec
+
     val redisClient = "net.debasishg" %% "redisclient" % Version.RedisClient
     val scalaIO = "com.github.scala-incubator.io" %% "scala-io-core" % Version.ScalaIO
     val scalaTime = "org.scalaj" % "scalaj-time_2.10.0-M7" % Version.ScalaTime

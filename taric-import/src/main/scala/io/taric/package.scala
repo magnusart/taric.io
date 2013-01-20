@@ -2,7 +2,6 @@ package io
 
 import java.util.concurrent.Executors
 import scala.concurrent.ExecutionContext
-import akka.actor.ActorRef
 
 /**
  * Copyright Solvies AB 2012
@@ -11,7 +10,7 @@ import akka.actor.ActorRef
  * Time: 22:04
  */
 package object taric {
-  implicit val executorService = Executors.newCachedThreadPool()
-  implicit val executorContext = ExecutionContext.fromExecutorService(executorService)
+  implicit val executorService = Executors.newCachedThreadPool( )
+  implicit val executorContext = ExecutionContext.fromExecutorService( executorService )
 
 }
