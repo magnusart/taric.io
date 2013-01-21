@@ -43,7 +43,7 @@ object IOLogic {
     f( ftpClient ).onComplete {
       case f:Failure[_] =>
         log.error( f.failed.get, "Unable to complete work. Trying to clean up." )
-        //eventBus ! BrowsingResult( None, Option( ftpClient ) )
+        //eventBusRef ! BrowsingResult( None, Option( ftpClient ) )
 
         if( ftpClient.isConnected ) {
           ftpClient logout()

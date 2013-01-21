@@ -16,10 +16,9 @@ class CommandBus extends Actor with ActorLogging with Listeners {
   import CommandBus.Command
 
   def receive = listenerManagement orElse {
-    case ev:Command => gossip( ev )( sender )
-    log.debug( "Command bus {}.", ev )
+    case ev:Command   => gossip( ev )( sender )
     case Failure( f ) => log.error( "Actor sent failure: {}. Message: {}", f, f.getStackTraceString )
-    case ar:AnyRef => log.error( "Got a unkown object on the command bus: {}.", ar )
+    case ar:AnyRef    => log.error( "Got a unkown object on the command bus: {}.", ar )
   }
 }
 object CommandBus {
@@ -28,6 +27,8 @@ object CommandBus {
   }
 
   sealed trait Command
+  case object StartImport extends Command
+
   case object FetchCurrentVersion extends Command
   case object FetchTaricUrls extends Command
   case class ReplaceCurrentVersion( ver:Int ) extends Command
@@ -45,10 +46,9 @@ class EventBus extends Actor with ActorLogging with Listeners {
   import EventBus.Event
 
   def receive = listenerManagement orElse {
-    case ev:Event => gossip( ev )
-    log.debug( "Event bus {}.", ev )
+    case ev:Event     => gossip( ev )
     case Failure( f ) => log.error( "Actor sent failure: {}. Message: {}", f, f.getStackTraceString )
-    case ar:AnyRef => log.error( "Got a unkown object on the report bus: {}.", ar )
+    case ar:AnyRef    => log.error( "Got a unkown object on the event bus: {}.", ar )
   }
 }
 object EventBus {
@@ -57,9 +57,9 @@ object EventBus {
   }
 
   sealed trait Event
-  case object StartImport extends Event
+  case object StartedImport extends Event
   case object ImportFinished extends Event
-  case class NewLatestVersion( ver:Int ) extends Event
+  case class ReplacedCurrentVersion( oldVer:Int, newVer:Int ) extends Event
   case class ProducedFlatFileRecord( record:FlatFileRecord ) extends Event
 }
 
@@ -69,7 +69,6 @@ class ReportBus extends Actor with ActorLogging with Listeners {
 
   def receive = listenerManagement orElse {
     case rp:Report => gossip( rp )
-    log.debug( "Event bus {}.", rp )
     case Failure( f ) => log.error( "Actor sent failure: {}. Message: {}", f, f.getStackTraceString )
     case ar:AnyRef => log.error( "Got a unkown object on the report bus: {}.", ar )
   }
@@ -81,6 +80,7 @@ object ReportBus {
 
   sealed trait Report
   case class CurrentVersion( ver:Int ) extends Report
+  case class LatestVersionInListing( ver:Int ) extends Report
 
   case class TaricPathPattern( path:String, pattern:String )
   case class TaricUrls( taricFtpUrl:String, tot:TaricPathPattern, dif:TaricPathPattern ) extends Report

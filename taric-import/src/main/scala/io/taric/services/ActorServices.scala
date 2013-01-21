@@ -6,68 +6,53 @@ import domains._
 import concurrent.Future
 
 import akka.pattern.pipe
-import services.RemoteResources.ResourcesDependencies
 import domains.FlatFileRecord
-import services.TaricCodeConverterWorker.TaricCodeConverterDependencies
 
 import CommandBus._
 import EventBus._
 import ReportBus._
 
-class RemoteResources( implicit val dep:ResourcesDependencies ) extends Actor with ActorLogging {
+class RemoteResources( implicit d:FetchRemoteResources, r:ReportProducer, e:EventProducer ) extends Actor with ActorLogging {
 
   import LocatingTaricFiles._
 
-  val reportBus = dep.reportBus
-  val eventBus = dep.eventBus
-
   private[this] def fetchFileListing( pattern:String, url:String ) = for {
-    fileNames <- dep.fetchFileListing( url )
+    fileNames <- d.fetchFileListing( url )
     filteredNames <- Future( fileNames.filter( filterFileType( pattern, _ ) ) )
     fileVersion <- Future( latestFileVersion( filteredNames ) )
-    report <- Future( NewLatestVersion( fileVersion ) )
+    report <- Future( LatestVersionInListing( fileVersion ) )
   } yield report
 
   private[this] def fetchRemoteFileLines( url:String, fileName:String ) = for {
-    lines <- dep.fetchFilePlainTextLines( url, fileName )
+    lines <- d.fetchFilePlainTextLines( url, fileName )
     records <- Future( ( lines map FlatFileRecord ) )
     reports <- Future( ( records map ProducedFlatFileRecord ) )
   } yield reports
 
   private[this] def emitAll( futureRecords:Future[Stream[ProducedFlatFileRecord]] ) =
     for( records <- futureRecords )
-    yield records.foreach( eventBus ! _ )
+    yield records.foreach( e.eventBus ! _ )
 
   def receive = {
-    case ComputeLatestVersion( pattern, url ) => fetchFileListing( pattern, url ) pipeTo ( reportBus )
+    case ComputeLatestVersion( pattern, url ) => fetchFileListing( pattern, url ) pipeTo ( r.reportBus )
     case FetchRemoteResource( url, fileName ) => emitAll( fetchRemoteFileLines( url, fileName ) )
   }
 }
 
-object RemoteResources {
-  trait ResourcesDependencies extends ReportProducer with EventProducer with FetchRemoteResources
-}
-
-class TaricCodeConverterWorker( implicit val dep:TaricCodeConverterDependencies ) extends
-Actor with ActorLogging {
+class TaricCodeConverterWorker( implicit r:ReportProducer ) extends Actor with ActorLogging {
 
   import TaricCodeExtensions._
 
-  val reportBus = dep.reportBus
   def receive = {
     case ParseFlatFileRecord( record ) => record.asTaricCode match {
-      case Right( r ) => reportBus ! ParsedAsTaric( r )
+      case Right( rec ) => r.reportBus ! ParsedAsTaric( rec )
       case Left( m ) => log.error( m )
     }
   }
 }
 
-object TaricCodeConverterWorker {
-  trait TaricCodeConverterDependencies extends ReportProducer
-}
 
-class ApplicationResources extends Actor with ActorLogging {
-
+class ApplicationResources( implicit e:EventProducer ) extends Actor with ActorLogging {
 
   var currentVersion = 0
 
@@ -83,10 +68,11 @@ class ApplicationResources extends Actor with ActorLogging {
   def receive = {
     // TODO 2012-12-31 (Magnus Andersson) Store this in AppDB or filesystem
     case FetchCurrentVersion => sender ! CurrentVersion( currentVersion )
-    log.debug( "Current version {} requested.", currentVersion )
 
-    case ReplaceCurrentVersion( ver ) => currentVersion = ver
-    log.debug( "New current version {} to be stored.", currentVersion )
+    case ReplaceCurrentVersion( ver ) =>
+      val oldVer = currentVersion
+      currentVersion = ver
+      e.eventBus ! ReplacedCurrentVersion( oldVer, ver )
 
     case FetchTaricUrls => sender ! TaricUrls(
       taricFtpUrl,
@@ -96,8 +82,14 @@ class ApplicationResources extends Actor with ActorLogging {
   }
 }
 
+class EventLogger extends Actor with ActorLogging {
+  def receive = {
+    case e:Event => log.debug(s"$e")
+  }
+}
+
 class DebugLogger extends Actor with ActorLogging {
-  override def receive = {
+  def receive = {
     case t:TaricCode if ( t.code.startsWith( "0304" ) ) => {
       log.debug( t.code toString )
     }

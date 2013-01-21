@@ -14,7 +14,6 @@ import io.taric.domains.{FlatFileRecord}
 import services.EventBus._
 import services.ReportBus._
 import services.CommandBus._
-import services.TaricCodeConverterWorker.TaricCodeConverterDependencies
 
 /**
  * File created: 2013-01-16 14:43
@@ -33,7 +32,7 @@ class ProductCodeConverterActorSpec( _system:ActorSystem ) extends TestKit( _sys
   "ProductCode converter" should "given flat line specs emit taric product codes" in {
     val probe = TestProbe( )
 
-    implicit val mockedConverterDep = new TaricCodeConverterDependencies {
+    implicit val mockedConverterDep = new ReportProducer {
       def reportBus:ActorRef = probe.ref
     }
 

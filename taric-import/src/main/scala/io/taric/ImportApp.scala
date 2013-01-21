@@ -2,43 +2,71 @@ package io.taric
 
 import akka.actor.{ActorRef, Props, ActorSystem}
 import com.typesafe.config._
-import akka.routing.RoundRobinRouter
+import domains.FetchRemoteResources
 import scala.concurrent.duration._
 import services._
 import akka.routing.Listen
 import controllers.TaricImportFSM
-import services.EventBus.StartImport
+import services.CommandBus.{CommandProducer, StartImport}
+import services.EventBus.EventProducer
+import concurrent.Future
+import services.ReportBus.ReportProducer
 ;
 
 object ImportApp extends App {
-  val config = ConfigFactory.load( )
 
-  val system = ActorSystem( "TaricImportSystem", config )
+  val app = new ImportApplication {
 
-  system.log.info( "Stared Actorsystem {} for Taric.io ImportApp.", system.name )
+    val config = ConfigFactory.load( )
+    val systemRef = ActorSystem( "TaricImportSystem", config )
+    val commandBusRef:ActorRef = systemRef.actorOf( Props[CommandBus], "command-bus" )
+    val eventBusRef:ActorRef = systemRef.actorOf( Props[EventBus], "event-bus" )
+    val reportBusRef:ActorRef = systemRef.actorOf( Props[ReportBus], "report-bus" )
 
-  val commandBus  = system.actorOf( Props[CommandBus], "command-bus" )
-  val eventBus    = system.actorOf( Props[EventBus],   "event-bus"   )
-  val reportBus   = system.actorOf( Props[ReportBus],  "report-bus"  )
+    // Dependency injection
+    implicit val reportProducer = new ReportProducer {val reportBus:ActorRef = reportBusRef}
+    implicit val eventProducer = new EventProducer {val eventBus:ActorRef = eventBusRef}
+    implicit val commandProducer = new CommandProducer {val commandBus:ActorRef = commandBusRef}
+    implicit val remoteRes = new FetchRemoteResources {
+      def fetchFileListing( url:String ):Future[List[String]] = Future( List.empty )
+      def fetchFilePlainTextLines( url:String, fileName:String ):Future[Stream[String]] = Future( Stream.empty )
+    }
 
-  // Controller
-  val taricController = system.actorOf( Props[TaricImportFSM], "taric-controller" )
+    val controller:ActorRef = systemRef.actorOf( Props[TaricImportFSM], "taric-controller" )
+    val systemRes:ActorRef = systemRef.actorOf( Props( new ApplicationResources ), "app-resources" )
+    val remoteResources:ActorRef = systemRef.actorOf( Props( new RemoteResources ), "remote-resources" )
 
-  // ActorServices
-  val systemRes = system.actorOf( Props[ApplicationResources], "app-resources" )
+  }
 
-  // Register Controller with report bus
-  reportBus ! Listen( taricController )
+  app.startSystem
+}
 
-  // Register ActorServices with command bus
-  commandBus ! Listen( systemRes )
+trait ImportApplication {
+  def systemRef:ActorSystem
+  def commandBusRef:ActorRef
+  def eventBusRef:ActorRef
+  def reportBusRef:ActorRef
+  def controller:ActorRef
+  def systemRes:ActorRef
+  def remoteResources:ActorRef
 
-  system.log.info( "Created actors and message buses." )
-  system.log.info( "Starting import scheduler." )
+  private[this] def registerListeners {
+    reportBusRef ! Listen( controller )
+    commandBusRef ! Listen( controller )
+    commandBusRef ! Listen( systemRes )
+    commandBusRef ! Listen( remoteResources )
+  }
 
   // Start scheduler
-  ( system scheduler ) schedule(0 seconds, 60.seconds, eventBus, StartImport)
+  private[this] def startScheduler = ( systemRef scheduler ) schedule(0 seconds, 60.seconds, commandBusRef, StartImport)
 
-  system.log.info( "System ready." )
+  def prepareSystem {
+    registerListeners
+  }
 
+  def startSystem {
+    prepareSystem
+    startScheduler
+    systemRef.log.info( "Started {} for Taric.io import module.", systemRef.name )
+  }
 }

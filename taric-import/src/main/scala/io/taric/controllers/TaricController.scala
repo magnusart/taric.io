@@ -1,7 +1,7 @@
 package io.taric
 package controllers
 
-import akka.actor.{Actor, FSM}
+import akka.actor.{ActorRef, Actor, FSM}
 import akka.pattern.{ask, pipe}
 import io.taric.domains._
 import io.taric.ImportApp._
@@ -33,10 +33,10 @@ object TaricImportFSM {
 /**
  * Cycles through the following states when importing.
  * Idle ->
- * Preparing (system properties) ->
+ * Preparing (systemRef properties) ->
  * BrowsingFTP ->
  */
-class TaricImportFSM extends Actor with FSM[State, Data] {
+class TaricImportFSM( implicit r:ReportProducer, c:CommandProducer, e:EventProducer ) extends Actor with FSM[State, Data] {
   implicit val logger = log
 
   startWith( Idle, Uninitialized )
@@ -50,20 +50,21 @@ class TaricImportFSM extends Actor with FSM[State, Data] {
   when( Idle ) {
     case Event( StartImport, _ ) =>
       log.debug( "Starting taric import." )
+      e.eventBus ! StartedImport
       goto( Preparing ) forMax ( 20 seconds )
   }
 
   onTransition {
     case Idle -> Preparing =>
       implicit val timeout = Timeout( 15 seconds )
-      aggregateVersionUrls( timeout ) pipeTo reportBus
+      aggregateVersionUrls( timeout ) pipeTo r.reportBus
       log.debug( "Transitioning Idle -> Preparing" )
   }
 
-  // Aggregate system preferences needed
+  // Aggregate systemRef preferences needed
   def aggregateVersionUrls( implicit timeout:akka.util.Timeout ) = {
-    val verFuture = ( commandBus ? FetchCurrentVersion )
-    val urlsFuture = ( commandBus ? FetchTaricUrls )
+    val verFuture = ( c.commandBus ? FetchCurrentVersion )
+    val urlsFuture = ( c.commandBus ? FetchTaricUrls )
     for {
       CurrentVersion( ver ) <- verFuture.mapTo[CurrentVersion]
       urls:TaricUrls <- urlsFuture.mapTo[TaricUrls]
@@ -72,7 +73,7 @@ class TaricImportFSM extends Actor with FSM[State, Data] {
 
   when( Preparing ) {
     case Event( VersionUrlsAggregate( ver, TaricUrls( url, tot, dif ) ), _ ) =>
-      log.debug( "Got system preferences" )
+      log.debug( "Got systemRef preferences" )
       goto( BrowsingFTP ) forMax ( 2 minutes )
   }
 
@@ -85,7 +86,6 @@ class TaricImportFSM extends Actor with FSM[State, Data] {
   onTermination {
     case StopEvent( _, state, stateData ) if ( state != Idle ) =>
       log.debug( "Stopping FSM." )
-      eventBus ! Deafen( self )
   }
 
   initialize
