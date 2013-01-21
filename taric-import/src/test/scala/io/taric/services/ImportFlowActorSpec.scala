@@ -6,7 +6,6 @@ import akka.testkit.{ImplicitSender, TestKit}
 import org.scalatest.{GivenWhenThen, FeatureSpec, BeforeAndAfterAll}
 import org.scalatest.matchers.ShouldMatchers
 import io.taric.TestSetup._
-import com.typesafe.config.ConfigFactory
 import io.taric.controllers.TaricImportFSM
 import io.taric.{TestData, ImportApplication}
 import concurrent.Future
@@ -35,63 +34,10 @@ with GivenWhenThen with ShouldMatchers with BeforeAndAfterAll {
   info( "So that I do not have to manually check and import for updates" )
 
   scenario( "First import, import and persist all Taric product codes (happy flow)." ) {
-    Given( "The systemRef is in an idle state" )
-    val app = new ImportApplication {
-      val systemRef = system
-      val commandBusRef:ActorRef = systemRef.actorOf( Props[CommandBus], "command-bus" )
-      val eventBusRef:ActorRef = systemRef.actorOf( Props[EventBus], "event-bus" )
-      val reportBusRef:ActorRef = systemRef.actorOf( Props[ReportBus], "report-bus" )
-
-      implicit val reportProducer = new ReportProducer {
-        val reportBus:ActorRef = reportBusRef
-      }
-
-      implicit val eventProducer = new EventProducer {
-        val eventBus:ActorRef = eventBusRef
-      }
-
-      implicit val commandProducer = new CommandProducer {
-        val commandBus:ActorRef = commandBusRef
-      }
-
-      val controller:ActorRef = systemRef.actorOf( Props( new TaricImportFSM ), "taric-controller" )
-
-      val systemRes:ActorRef = systemRef.actorOf( Props( new ApplicationResources ), "app-resources" )
-
-      implicit val remoteDep = new FetchRemoteResources {
-        def fetchFileListing( url:String ):Future[List[String]] = url match {
-          case "/www1/distr/taric/flt/tot/" => Future( TestData.totFiles )
-          case "/www1/distr/taric/flt/dif/" => Future( TestData.difFiles )
-        }
-
-        def fetchFilePlainTextLines( url:String, fileName:String ):Future[Stream[String]] = fileName match {
-          case "3090_KA.tot.gz.pgp" => Future( TestData.kaFile.split( "\n" ).toStream )
-          case "3090_KI.tot.gz.pgp" => Future( TestData.kiFile.split( "\n" ).toStream )
-          case "3090_KJ.tot.gz.pgp" => Future( TestData.kjFile.split( "\n" ).toStream )
-          case "3091_KA.dif.gz.pgp" => Future( Stream.empty )
-          case "3091_KI.dif.gz.pgp" => Future( Stream.empty )
-          case "3091_KJ.dif.gz.pgp" => Future( Stream.empty )
-          case "3092_KA.dif.gz.pgp" => Future( Stream.empty )
-          case "3092_KI.dif.gz.pgp" => Future( Stream.empty )
-          case "3092_KJ.dif.gz.pgp" => Future( Stream.empty )
-          case "3093_KA.dif.gz.pgp" => Future( Stream.empty )
-          case "3093_KI.dif.gz.pgp" => Future( Stream.empty )
-          case "3093_KJ.dif.gz.pgp" => Future( Stream.empty )
-          case "3094_KA.dif.gz.pgp" => Future( Stream.empty )
-          case "3094_KI.dif.gz.pgp" => Future( Stream.empty )
-          case "3094_KJ.dif.gz.pgp" => Future( Stream.empty )
-        }
-      }
-
-      val remoteResources:ActorRef = systemRef.actorOf( Props( new RemoteResources ), "remote-resources" )
-
-      val eventLogger = system.actorOf( Props[EventLogger], "event-logger" )
-      eventBusRef ! Listen( eventLogger )
-    }
-    app.prepareSystem
-    And( "new taric data is available" )
-
+    Given( "new taric data is available" )
     And( "a persistent datastore is available" )
+    And( "The system is in an idle state" )
+    app.prepareSystem
 
     When( "the start import event is published" )
     app.commandBusRef ! StartImport
@@ -106,5 +52,46 @@ with GivenWhenThen with ShouldMatchers with BeforeAndAfterAll {
     pending
   }
 
+  val app = new ImportApplication {
+    val systemRef = system
+    val commandBusRef:ActorRef = systemRef.actorOf( Props[CommandBus], "command-bus" )
+    val eventBusRef:ActorRef = systemRef.actorOf( Props[EventBus], "event-bus" )
+    val reportBusRef:ActorRef = systemRef.actorOf( Props[ReportBus], "report-bus" )
 
+    // Dependency injection
+    implicit val reportProducer = new ReportProducer {val reportBus:ActorRef = reportBusRef}
+    implicit val eventProducer = new EventProducer {val eventBus:ActorRef = eventBusRef}
+    implicit val commandProducer = new CommandProducer {val commandBus:ActorRef = commandBusRef}
+    implicit val remoteRes = new FetchRemoteResources {
+      def fetchFileListing( url:String ):Future[List[String]] = url match {
+        case "/www1/distr/taric/flt/tot/" => Future( TestData.totFiles )
+        case "/www1/distr/taric/flt/dif/" => Future( TestData.difFiles )
+      }
+
+      def fetchFilePlainTextLines( url:String, fileName:String ):Future[Stream[String]] = fileName match {
+        case "3090_KA.tot.gz.pgp" => Future( TestData.kaFile.split( "\n" ).toStream )
+        case "3090_KI.tot.gz.pgp" => Future( TestData.kiFile.split( "\n" ).toStream )
+        case "3090_KJ.tot.gz.pgp" => Future( TestData.kjFile.split( "\n" ).toStream )
+        case "3091_KA.dif.gz.pgp" => Future( Stream.empty )
+        case "3091_KI.dif.gz.pgp" => Future( Stream.empty )
+        case "3091_KJ.dif.gz.pgp" => Future( Stream.empty )
+        case "3092_KA.dif.gz.pgp" => Future( Stream.empty )
+        case "3092_KI.dif.gz.pgp" => Future( Stream.empty )
+        case "3092_KJ.dif.gz.pgp" => Future( Stream.empty )
+        case "3093_KA.dif.gz.pgp" => Future( Stream.empty )
+        case "3093_KI.dif.gz.pgp" => Future( Stream.empty )
+        case "3093_KJ.dif.gz.pgp" => Future( Stream.empty )
+        case "3094_KA.dif.gz.pgp" => Future( Stream.empty )
+        case "3094_KI.dif.gz.pgp" => Future( Stream.empty )
+        case "3094_KJ.dif.gz.pgp" => Future( Stream.empty )
+      }
+    }
+
+    val controller:ActorRef = systemRef.actorOf( Props( new TaricImportFSM ), "taric-controller" )
+    val systemRes:ActorRef = systemRef.actorOf( Props( new ApplicationResources ), "app-resources" )
+    val remoteResources:ActorRef = systemRef.actorOf( Props( new RemoteResources ), "remote-resources" )
+
+    val eventLogger = system.actorOf( Props[EventLogger], "event-logger" )
+    eventBusRef ! Listen( eventLogger )
+  }
 }
