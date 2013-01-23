@@ -91,7 +91,9 @@ with GivenWhenThen with ShouldMatchers with BeforeAndAfterAll {
     val systemRes:ActorRef = systemRef.actorOf( Props( new ApplicationResources ), "app-resources" )
     val remoteResources:ActorRef = systemRef.actorOf( Props( new RemoteResources ), "remote-resources" )
 
-    val eventLogger = system.actorOf( Props[EventLogger], "event-logger" )
-    eventBusRef ! Listen( eventLogger )
+    val messageLogger = system.actorOf( Props[MessageLogger], "event-logger" )
+    eventBusRef   ! Listen( messageLogger )
+    reportBusRef  ! Listen( messageLogger )
+    commandBusRef ! Listen( messageLogger )
   }
 }

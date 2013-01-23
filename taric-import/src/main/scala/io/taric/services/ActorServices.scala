@@ -82,16 +82,10 @@ class ApplicationResources( implicit e:EventProducer ) extends Actor with ActorL
   }
 }
 
-class EventLogger extends Actor with ActorLogging {
+class MessageLogger extends Actor with ActorLogging {
   def receive = {
-    case e:Event => log.debug(s"$e")
-  }
-}
-
-class DebugLogger extends Actor with ActorLogging {
-  def receive = {
-    case t:TaricCode if ( t.code.startsWith( "0304" ) ) => {
-      log.debug( t.code toString )
-    }
+    case e:Event    => log.debug(s"EventBus --> $e "  )
+    case c:Command  => log.debug(s"CommandBus ---> $c")
+    case r:Report   => log.debug(s"ReportBus ---> $r" )
   }
 }
