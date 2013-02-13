@@ -1,18 +1,20 @@
 package io.taric
 package services
 
-import org.scalatest.{BeforeAndAfter, FlatSpec, BeforeAndAfterAll}
+import org.scalatest.{FlatSpec, BeforeAndAfterAll}
 import org.scalatest.matchers.ShouldMatchers
 import akka.testkit.{TestProbe, TestKit, ImplicitSender}
 import scala.concurrent.duration._
 import concurrent.Future
 import io.taric.TestData._
 import akka.actor.{ActorRef, ActorSystem, Props}
+import akka.pattern.ask
 import TestSetup._
 import services.CommandBus._
 import services.EventBus._
-import services.ReportBus._
-import domains.FetchRemoteResources
+import domains.{ManageSystemConfigurationHardCoded, FetchRemoteResources}
+import akka.util.Timeout
+import controllers.ImportController
 
 /**
  * File created: 2013-01-14 16:36
@@ -22,11 +24,9 @@ import domains.FetchRemoteResources
  */
 
 class RemoteResourcesActorSpec( _system:ActorSystem ) extends TestKit( _system ) with ImplicitSender with FlatSpec with ShouldMatchers with BeforeAndAfterAll {
-  def this( ) = this( ActorSystem( "TestSystem1", testConf) )
+  def this( ) = this( ActorSystem( "RemoteResourcesActorSystem", testConf ) )
   val probe = TestProbe( )
-  implicit val reportProducer = new ReportProducer {
-    val reportBus:ActorRef = probe.ref
-  }
+  implicit val timeout = Timeout( 3 seconds )
 
   implicit val eventProducer = new EventProducer {
     val eventBus:ActorRef = probe.ref
@@ -40,7 +40,7 @@ class RemoteResourcesActorSpec( _system:ActorSystem ) extends TestKit( _system )
   val totUrl = "TOT"
   val difUrl = "DIF"
 
-  "Actor RemoteResources" should "emit messages containing the latest version for files when ComputeLatestVersion is sent" in {
+  "Actor RemoteResources" should "emit messages containing the latest version for files when FetchListing is sent" in {
 
     implicit val mockedDependencies = new FetchRemoteResources {
       def fetchFileListing( url:String ):Future[List[String]] = url match {
@@ -52,9 +52,15 @@ class RemoteResourcesActorSpec( _system:ActorSystem ) extends TestKit( _system )
     }
 
     val testRef = system.actorOf( Props( new RemoteResources( ) ), "remote-resources1" )
-    testRef ! ComputeLatestVersion( totPattern, totUrl )
-    testRef ! ComputeLatestVersion( difPattern, difUrl )
-    probe.expectMsgAllOf( LatestVersionInListing( 3090 ), LatestVersionInListing( 3094 ) )
+
+    implicit val commandProducer = new CommandProducer {
+      def commandBus:ActorRef = testRef
+    }
+
+    val agg = ImportController.aggregateListings( ManageSystemConfigurationHardCoded.totPattern, ManageSystemConfigurationHardCoded.difPattern, totUrl, difUrl )
+
+    agg.mapTo[Listings].map( _ should be( Listings( Listing( "TOT", totFilteredFiles , 3090 ), Listing( "DIF", difFilteredFiles, 3094 ) ) ) )
+
   }
 
   it should "emit messages containing FlatFileRecords when command FetchRemoteResource is sent" in {
@@ -94,8 +100,8 @@ class RemoteResourcesActorSpec( _system:ActorSystem ) extends TestKit( _system )
   }
 
   private[this] def checkForFlatFileRecords( probe:TestProbe, maxMessages:Int ) = probe
-    .receiveWhile( 500 millis, 20 millis, maxMessages ) {
+    .receiveWhile( 1500 millis, 200 millis, maxMessages ) {
     case r:ProducedFlatFileRecord => true
-    case e@_ => println( s"Got incorrect message $e." ); false
+    case e => println( s"Got incorrect message $e." ); false
   }
 }

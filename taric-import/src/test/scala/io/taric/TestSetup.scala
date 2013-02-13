@@ -9,8 +9,10 @@ import com.typesafe.config.{ConfigFactory, Config}
  * For licensing information see LICENSE file
  */
 object TestSetup {
-  val testConf:Config = ConfigFactory.parseString(s"""
+  val testConf:Config = ConfigFactory.parseString("""
       akka {
+        event-handlers = ["akka.event.Logging$DefaultLogger"]
+        loglevel = "INFO"
         actor {
           provider = "akka.actor.LocalActorRefProvider"
         }

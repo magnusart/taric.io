@@ -13,8 +13,8 @@ import io.taric.TestData._
  */
 class LocatingTaricFilesSpec extends FlatSpec with ShouldMatchers {
 
-  lazy val totTestFiles = totFiles.filter( filterFileType( totPattern, _ ) )
-  lazy val difTestFiles = difFiles.filter( filterFileType( difPattern, _ ) )
+  lazy val totTestFiles = totFiles.filter( filterFileType( ManageSystemConfigurationHardCoded.totPattern, _ ) )
+  lazy val difTestFiles = difFiles.filter( filterFileType( ManageSystemConfigurationHardCoded.difPattern, _ ) )
 
   "Filtering files for KA, KI, KJ or DA, DI, DJ" should "yield a shorter list" in {
     totTestFiles.length should ( be < totFiles.length )

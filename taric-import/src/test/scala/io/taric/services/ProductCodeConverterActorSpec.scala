@@ -5,14 +5,12 @@ import akka.testkit.{TestProbe, ImplicitSender, TestKit}
 import org.scalatest.{BeforeAndAfterAll, FlatSpec}
 import org.scalatest.matchers.ShouldMatchers
 import akka.actor.{Props, ActorRef, ActorSystem}
-import concurrent.Future
 import io.taric.TestData
 import akka.routing.SmallestMailboxRouter
 import scala.concurrent.duration._
 import TestSetup._
-import io.taric.domains.{FlatFileRecord}
+import io.taric.domains.FlatFileRecord
 import services.EventBus._
-import services.ReportBus._
 import services.CommandBus._
 
 /**
@@ -32,8 +30,8 @@ class ProductCodeConverterActorSpec( _system:ActorSystem ) extends TestKit( _sys
   "ProductCode converter" should "given flat line specs emit taric product codes" in {
     val probe = TestProbe( )
 
-    implicit val mockedConverterDep = new ReportProducer {
-      def reportBus:ActorRef = probe.ref
+    implicit val mockedConverterDep = new EventProducer {
+      def eventBus:ActorRef = probe.ref
     }
 
     val converterRef = system.actorOf(
@@ -63,7 +61,7 @@ class ProductCodeConverterActorSpec( _system:ActorSystem ) extends TestKit( _sys
   }
 
   private[this] def checkForTaricCodes( probe:TestProbe, maxMessages:Int ) = probe
-    .receiveWhile( 500 millis, 20 millis, maxMessages ) {
+    .receiveWhile( 500 millis, 200 millis, maxMessages ) {
     case r:ParsedAsTaric => true
     case e@_ => println( s"Got incorrect message $e." ); false
   }

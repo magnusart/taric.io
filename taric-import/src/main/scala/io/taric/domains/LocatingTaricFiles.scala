@@ -12,7 +12,7 @@ object LocatingTaricFiles {
 
   private[this] def fNum( f:String ):Int = f.take( 4 ).toInt
 
-  def latestFileVersion( fileNameList:List[String] ):Int = {
+  def   latestFileVersion( fileNameList:List[String] ):Int = {
     def highestNum = ( i:Int, f:String ) => if( i > fNum( f ) ) i else fNum( f )
     fileNameList.foldLeft( 0 )( highestNum )
   }
