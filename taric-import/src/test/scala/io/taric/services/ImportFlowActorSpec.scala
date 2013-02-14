@@ -89,13 +89,8 @@ with GivenWhenThen with ShouldMatchers with BeforeAndAfterAll {
     eventProbe.expectMsg( StartedImport )
     Then( "the import should gather systemRef configuration" )
     commandProbe.expectMsgAllOf( FetchCurrentVersion, FetchTaricUrls )
-    val verUrlAggr = VersionUrlsAggregate(
-      0, TotDifUrls(
-        ManageSystemConfigurationHardCoded.ftpUrl,
-        TaricPathPattern( ManageSystemConfigurationHardCoded.totPath, ManageSystemConfigurationHardCoded.totPattern ),
-        TaricPathPattern( ManageSystemConfigurationHardCoded.difPath, ManageSystemConfigurationHardCoded.difPattern )
-      )
-    )
+
+    eventProbe.expectMsg( Prepared )
 
     commandProbe.expectMsgAllOf( 
       FetchListing( ManageSystemConfigurationHardCoded.totPattern, totUrl ), 
@@ -122,26 +117,10 @@ with GivenWhenThen with ShouldMatchers with BeforeAndAfterAll {
     )
 
     Then( "fetch the remote resources, yielding line records" )
-    /*inAnyOrder {
-      ( remoteRes.fetchFilePlainTextLines _ ).expects( "/www1/distr/taric/flt/tot/", "3090_KA.tot.gz.pgp" ).returning( Future( TestData.kaFile.split( "\n" ).toStream ) )
-      ( remoteRes.fetchFilePlainTextLines _ ).expects( "/www1/distr/taric/flt/tot/", "3090_KA.tot.gz.pgp" ).returning( Future( TestData.kaFile.split( "\n" ).toStream ) )
-      ( remoteRes.fetchFilePlainTextLines _ ).expects( "/www1/distr/taric/flt/tot/", "3090_KI.tot.gz.pgp" ).returning( Future( TestData.kiFile.split( "\n" ).toStream ) )
-      ( remoteRes.fetchFilePlainTextLines _ ).expects( "/www1/distr/taric/flt/tot/", "3090_KJ.tot.gz.pgp" ).returning( Future( TestData.kjFile.split( "\n" ).toStream ) )
-      ( remoteRes.fetchFilePlainTextLines _ ).expects( "/www1/distr/taric/flt/tot/", "3091_KA.dif.gz.pgp" ).returning( Future( Stream.empty ) )
-      ( remoteRes.fetchFilePlainTextLines _ ).expects( "/www1/distr/taric/flt/tot/", "3091_KI.dif.gz.pgp" ).returning( Future( Stream.empty ) )
-      ( remoteRes.fetchFilePlainTextLines _ ).expects( "/www1/distr/taric/flt/tot/", "3091_KJ.dif.gz.pgp" ).returning( Future( Stream.empty ) )
-      ( remoteRes.fetchFilePlainTextLines _ ).expects( "/www1/distr/taric/flt/tot/", "3092_KA.dif.gz.pgp" ).returning( Future( Stream.empty ) )
-      ( remoteRes.fetchFilePlainTextLines _ ).expects( "/www1/distr/taric/flt/tot/", "3092_KI.dif.gz.pgp" ).returning( Future( Stream.empty ) )
-      ( remoteRes.fetchFilePlainTextLines _ ).expects( "/www1/distr/taric/flt/tot/", "3092_KJ.dif.gz.pgp" ).returning( Future( Stream.empty ) )
-      ( remoteRes.fetchFilePlainTextLines _ ).expects( "/www1/distr/taric/flt/tot/", "3093_KA.dif.gz.pgp" ).returning( Future( Stream.empty ) )
-      ( remoteRes.fetchFilePlainTextLines _ ).expects( "/www1/distr/taric/flt/tot/", "3093_KI.dif.gz.pgp" ).returning( Future( Stream.empty ) )
-      ( remoteRes.fetchFilePlainTextLines _ ).expects( "/www1/distr/taric/flt/tot/", "3093_KJ.dif.gz.pgp" ).returning( Future( Stream.empty ) )
-      ( remoteRes.fetchFilePlainTextLines _ ).expects( "/www1/distr/taric/flt/tot/", "3094_KA.dif.gz.pgp" ).returning( Future( Stream.empty ) )
-      ( remoteRes.fetchFilePlainTextLines _ ).expects( "/www1/distr/taric/flt/tot/", "3094_KI.dif.gz.pgp" ).returning( Future( Stream.empty ) )
-      ( remoteRes.fetchFilePlainTextLines _ ).expects( "/www1/distr/taric/flt/tot/", "3094_KJ.dif.gz.pgp" ).returning( Future( Stream.empty ) )
-    }*/
-    Then( "parse the line records into structured TaricCodes" )
-    Then( "merge information about existing codes, new codes and replaced codes" )
-    Then( "persist codes into the persistent data store" )
+    eventProbe.expectMsgClass( classOf[ProducedFlatFileRecord] )
+
+    // Then( "parse the line records into structured TaricCodes" )
+    // Then( "merge information about existing codes, new codes and replaced codes" )
+    // Then( "persist codes into the persistent data store" )
   }
 }

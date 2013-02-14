@@ -19,7 +19,7 @@ object TaricBuild extends Build {
     base = file( "." ),
     settings = defaultSettings ++ buildSettings ++
       Seq( SbtStartScript.stage in Compile := Unit ),
-    aggregate = Seq( timport, core )
+    aggregate = Seq( timport, parse, core )
   )
 
   lazy val timport = Project(
@@ -40,6 +40,20 @@ object TaricBuild extends Build {
   lazy val core = Project(
     id = "taric-core",
     base = file( "taric-core" ),
+    dependencies = Seq( ),
+    settings = jarSettings ++ defaultSettings ++ buildSettings ++ SbtOneJar.oneJarSettings ++
+      SbtStartScript.startScriptForClassesSettings ++
+      Seq(
+        libraryDependencies ++=
+          Dependencies.akkaComponent ++
+            Dependencies.db ++
+            Dependencies.test
+      )
+  )
+
+  lazy val parse = Project(
+    id = "taric-parse",
+    base = file( "taric-parse" ),
     dependencies = Seq( ),
     settings = jarSettings ++ defaultSettings ++ buildSettings ++ SbtOneJar.oneJarSettings ++
       SbtStartScript.startScriptForClassesSettings ++

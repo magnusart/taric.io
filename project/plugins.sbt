@@ -16,11 +16,11 @@ addSbtPlugin("com.github.retronym" % "sbt-onejar" % "0.8")
 
 addSbtPlugin("com.orrsella" % "sbt-sublime" % "1.0.4")
 
-libraryDependencies += sbtPluginExtra(
-  m = "com.github.mpeltonen" % "sbt-idea" % "1.3.0-SNAPSHOT", // Plugin module name and version
-  sbtV = "0.12",    // SBT version
-  scalaV = "2.9.2"    // Scala version compiled the plugin
-)
+// libraryDependencies += sbtPluginExtra(
+//   m = "com.github.mpeltonen" % "sbt-idea" % "1.3.0-SNAPSHOT", // Plugin module name and version
+//   sbtV = "0.12",    // SBT version
+//   scalaV = "2.9.2"    // Scala version compiled the plugin
+// )
 
 //addSbtPlugin("com.github.mpeltonen" % "sbt-idea" % "1.3.0-SNAPSHOT")
 libraryDependencies += sbtPluginExtra(
