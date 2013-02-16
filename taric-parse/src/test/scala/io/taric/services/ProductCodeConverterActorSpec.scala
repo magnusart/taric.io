@@ -9,7 +9,6 @@ import io.taric.TestData
 import akka.routing.SmallestMailboxRouter
 import scala.concurrent.duration._
 import TestSetup._
-import io.taric.domains.FlatFileRecord
 import services.EventBus._
 import services.CommandBus._
 

@@ -25,7 +25,7 @@ object TaricBuild extends Build {
   lazy val timport = Project(
     id = "taric-import",
     base = file( "taric-import" ),
-    dependencies = Seq( ),
+    dependencies = Seq( core ),
     settings = jarSettings ++ defaultSettings ++ buildSettings ++ SbtOneJar.oneJarSettings ++
       SbtStartScript.startScriptForClassesSettings ++
       Seq(
@@ -41,20 +41,16 @@ object TaricBuild extends Build {
     id = "taric-core",
     base = file( "taric-core" ),
     dependencies = Seq( ),
-    settings = jarSettings ++ defaultSettings ++ buildSettings ++ SbtOneJar.oneJarSettings ++
-      SbtStartScript.startScriptForClassesSettings ++
-      Seq(
+    settings = jarSettings ++ defaultSettings ++ buildSettings ++ Seq(
         libraryDependencies ++=
-          Dependencies.akkaComponent ++
-            Dependencies.db ++
-            Dependencies.test
+          Dependencies.akkaComponent
       )
   )
 
   lazy val parse = Project(
     id = "taric-parse",
     base = file( "taric-parse" ),
-    dependencies = Seq( ),
+    dependencies = Seq( core ),
     settings = jarSettings ++ defaultSettings ++ buildSettings ++ SbtOneJar.oneJarSettings ++
       SbtStartScript.startScriptForClassesSettings ++
       Seq(

@@ -6,7 +6,6 @@ import domains._
 import concurrent.Future
 
 import akka.pattern.pipe
-import domains.FlatFileRecord
 
 import CommandBus._
 import EventBus._
@@ -42,18 +41,6 @@ class RemoteResources( implicit d:FetchRemoteResources, e:EventProducer ) extend
   def receive = {
     case FetchListing( pattern, url ) => listComputeLatestVer( pattern, url ) pipeTo sender
     case FetchRemoteResource( url, fileName ) => emitAll( fetchRemoteFileLines( url, fileName ) )
-  }
-}
-
-class TaricCodeConverterWorker( implicit e:EventProducer ) extends Actor with ActorLogging {
-
-  import TaricCodeExtensions._
-
-  def receive = {
-    case ParseFlatFileRecord( record ) => record.asTaricCode match {
-      case Right( rec ) => e.eventBus ! ParsedAsTaric( rec )
-      case Left( m ) => log.error( m )
-    }
   }
 }
 

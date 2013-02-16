@@ -4,7 +4,7 @@ package services
 import akka.actor.{ActorRef, ActorLogging, Actor}
 import akka.routing.Listeners
 import akka.actor.Status.Failure
-import io.taric.domains.{TaricRecord, FlatFileRecord}
+
 
 /**
  * File created: 2013-01-20 21:28
@@ -12,6 +12,10 @@ import io.taric.domains.{TaricRecord, FlatFileRecord}
  * Copyright Solvies AB 2013
  * For licensing information see LICENSE file
  */
+trait TaricRecord
+
+case class FlatFileRecord( line:String )
+
 class CommandBus extends Actor with ActorLogging with Listeners {
 
   import CommandBus.Command
@@ -22,6 +26,7 @@ class CommandBus extends Actor with ActorLogging with Listeners {
     case a            => log.error( s"Got a unkown object on the report bus: $a." )
   }
 }
+
 object CommandBus {
   trait CommandProducer {
     def commandBus:ActorRef
@@ -38,7 +43,6 @@ object CommandBus {
   case class FetchRemoteResource( url:String, fileName:String ) extends Command
 
   case class ParseFlatFileRecord( record:FlatFileRecord ) extends Command
-  case class ParsedAsTaric( code:TaricRecord ) extends Command
 }
 
 class EventBus extends Actor with ActorLogging with Listeners {
@@ -71,4 +75,6 @@ object EventBus {
   case class TaricPathPattern( path:String, pattern:String )
   case class TotDifUrls( taricFtpUrl:String, tot:TaricPathPattern, dif:TaricPathPattern ) extends Event
   case class VersionUrlsAggregate( ver:Int, urls:TotDifUrls ) extends Event
+
+  case class ParsedAsTaric( code:TaricRecord ) extends Event
 }

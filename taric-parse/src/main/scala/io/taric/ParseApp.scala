@@ -3,7 +3,10 @@ package io.taric
 import akka.actor.{ActorRef, Props, ActorSystem}
 import com.typesafe.config._
 import scala.concurrent.duration._
+import services._
 import akka.routing.Listen
+import services.CommandBus.CommandProducer
+import services.EventBus.EventProducer
 import concurrent.Future
 
 object ParseApp extends App {
@@ -36,12 +39,8 @@ trait ParseApplication {
   def parser:ActorRef
 
   private[this] def registerListeners {
-    commandBusRef ! Listen( systemRes )
-    commandBusRef ! Listen( remoteResources )
+    commandBusRef ! Listen( parser )
   }
-
-  // Start scheduler
-  private[this] def startScheduler = ( systemRef scheduler ) schedule( 0 seconds, 6 hours, controller, StartImport)
 
   def prepareSystem {
     registerListeners
@@ -49,7 +48,6 @@ trait ParseApplication {
 
   def startSystem {
     prepareSystem
-    startScheduler
-    systemRef.log.info( "Started {} for Taric.io import module.", systemRef.name )
+    systemRef.log.info( s"Started ${systemRef.name} for Taric.io parse module." )
   }
 }

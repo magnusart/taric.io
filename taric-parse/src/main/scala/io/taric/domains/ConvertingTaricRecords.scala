@@ -3,7 +3,7 @@ package domains
 
 import scala.Some
 import TaricParser.codePattern
-
+import io.taric.services._
 /**
  * Copyright Solvies AB 2012
  * User: magnus
@@ -46,7 +46,6 @@ object SqlExpressionExtension {
       case NewTaricCode( oldCode, newCode, startDate, existingCodeAffected, (export, imp) ) => ""
     }
   }
-
 }
 
 sealed trait FileType
@@ -60,7 +59,6 @@ case object ReplacedRecords extends RecordType
 
 case class TaricHeader( batchNo:Int, fileType:FileType, recordTypes:RecordType ) extends TaricRecord
 
-sealed trait TaricRecord
 sealed trait TaricCode extends TaricRecord {
   def code:String
   def hs = code.take( 4 )
@@ -95,8 +93,6 @@ case class NewTaricCode( code:String, oldCode:String, startDate:String, existing
   val oldPres = if( oldCode.length == 10 ) Some( oldCode.drop( 8 ).take( 2 ) )
   else None
 }
-
-case class FlatFileRecord( line:String )
 
 object TaricParser {
 

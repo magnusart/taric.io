@@ -1,6 +1,7 @@
 package io.taric.domains
 
 import concurrent.Future
+import io.taric.services.FlatFileRecord
 
 /**
  * File created: 2013-01-13 18:46

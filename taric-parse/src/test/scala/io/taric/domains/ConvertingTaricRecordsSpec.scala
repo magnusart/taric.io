@@ -2,6 +2,7 @@ package io.taric.domains
 
 import org.scalatest.FlatSpec
 import org.scalatest.matchers.ShouldMatchers
+import io.taric.services.FlatFileRecord
 
 /**
  * File created: 2013-01-12 13:25
