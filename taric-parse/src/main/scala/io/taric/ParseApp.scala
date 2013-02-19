@@ -1,6 +1,6 @@
 package io.taric
 
-import akka.actor.{ActorRef, Props, ActorSystem}
+import akka.actor.{ ActorRef, Props, ActorSystem }
 import com.typesafe.config._
 import scala.concurrent.duration._
 import services._
@@ -13,19 +13,19 @@ object ParseApp extends App {
 
   val app = new ParseApplication {
 
-    val config = ConfigFactory.load( )
+    val config = ConfigFactory.load()
     val systemRef = ActorSystem( "TaricParseSystem", config )
 
     // Message buses
-    val commandBusRef:ActorRef  = systemRef.actorOf( Props[CommandBus], "command-bus" )
-    val eventBusRef:ActorRef    = systemRef.actorOf( Props[EventBus],   "event-bus"   )
+    val commandBusRef: ActorRef = systemRef.actorOf( Props[CommandBus], "command-bus" )
+    val eventBusRef: ActorRef = systemRef.actorOf( Props[EventBus], "event-bus" )
 
     // Dependency injection for services
-    implicit val eventProducer    = new EventProducer   { val eventBus:ActorRef   = eventBusRef   }
-    implicit val commandProducer  = new CommandProducer { val commandBus:ActorRef = commandBusRef }
+    implicit val eventProducer = new EventProducer { val eventBus: ActorRef = eventBusRef }
+    implicit val commandProducer = new CommandProducer { val commandBus: ActorRef = commandBusRef }
 
     // Services
-    val parser:ActorRef  = systemRef.actorOf( Props( new Parser ),      "remote-resources"  )
+    val parser: ActorRef = systemRef.actorOf( Props( new Parser ), "remote-resources" )
 
   }
 
@@ -33,10 +33,10 @@ object ParseApp extends App {
 }
 
 trait ParseApplication {
-  def systemRef:ActorSystem
-  def commandBusRef:ActorRef
-  def eventBusRef:ActorRef
-  def parser:ActorRef
+  def systemRef: ActorSystem
+  def commandBusRef: ActorRef
+  def eventBusRef: ActorRef
+  def parser: ActorRef
 
   private[this] def registerListeners {
     commandBusRef ! Listen( parser )

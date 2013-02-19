@@ -14,7 +14,6 @@ class ConvertingTaricRecordsSpec extends FlatSpec with ShouldMatchers {
 
   import TaricCodeExtensions._
 
-
   "The Taric Parser" should "Parse product codes of type A, with both export/import, start and end dates" in {
 
     val aHeader = FlatFileRecord( "Z30063006_KA.tot                                       2012111613:37:18" )
@@ -50,8 +49,8 @@ class ConvertingTaricRecordsSpec extends FlatSpec with ShouldMatchers {
     val taricCodeIFiltered = codeIFilter.asTaricCode
 
     taricIHeader should equal( Right( TaricHeader( 3006, Snapshot, ReplacedRecords ) ) )
-    taricCodeI should equal( Right( ReplaceTaricCode( "0102900510", "20120101", "0229101080", true, (Option( Export ), Option( Import )) ) ) )
-    taricCodeIFiltered should equal( Right( ReplaceTaricCode( "0102900500", "20120101", "0229100080", false, (Option( Export ), None) ) ) )
+    taricCodeI should equal( Right( ReplaceTaricCode( "0102900510", "20120101", "0229101080", true, ( Option( Export ), Option( Import ) ) ) ) )
+    taricCodeIFiltered should equal( Right( ReplaceTaricCode( "0102900500", "20120101", "0229100080", false, ( Option( Export ), None ) ) ) )
   }
 
   it should "Parse product codes of type J" in {
@@ -64,8 +63,8 @@ class ConvertingTaricRecordsSpec extends FlatSpec with ShouldMatchers {
     val taricCodeJFiltered = codeJFilter.asTaricCode
 
     taricJHeader should equal( Right( TaricHeader( 3006, Snapshot, NewRecords ) ) )
-    taricCodeJ should equal( Right( NewTaricCode( "0102290500", "20130101", "0102909900", true, (Option( Export ), Option( Import )) ) ) )
-    taricCodeJFiltered should equal( Right( NewTaricCode( "0102291000", "20130101", "0102909900", false, (Option( Export ), None) ) ) )
+    taricCodeJ should equal( Right( NewTaricCode( "0102290500", "20130101", "0102909900", true, ( Option( Export ), Option( Import ) ) ) ) )
+    taricCodeJFiltered should equal( Right( NewTaricCode( "0102291000", "20130101", "0102909900", false, ( Option( Export ), None ) ) ) )
   }
 
   it should "handle unknown record types" in {

@@ -11,24 +11,24 @@ import io.taric.services.FlatFileRecord
  */
 object LocatingTaricFiles {
 
-  private[this] def fNum( f:String ):Int = f.take( 4 ).toInt
+  private[this] def fNum( f: String ): Int = f.take( 4 ).toInt
 
-  def   latestFileVersion( fileNameList:List[String] ):Int = {
-    def highestNum = ( i:Int, f:String ) => if( i > fNum( f ) ) i else fNum( f )
+  def latestFileVersion( fileNameList: List[String] ): Int = {
+    def highestNum = ( i: Int, f: String ) ⇒ if ( i > fNum( f ) ) i else fNum( f )
     fileNameList.foldLeft( 0 )( highestNum )
   }
 
-  def filterFileType( pattern:String, fileName:String ) = pattern.r.findFirstMatchIn( fileName ).isDefined
+  def filterFileType( pattern: String, fileName: String ) = pattern.r.findFirstMatchIn( fileName ).isDefined
 
-  def filesIncluding( ver:Int, fileNameList:List[String] ) = fileNameList.filter( fNum( _ ) == ver )
+  def filesIncluding( ver: Int, fileNameList: List[String] ) = fileNameList.filter( fNum( _ ) == ver )
 
-  def filesLaterThan( ver:Int, fileNameList:List[String] ) = fileNameList.filter( fNum( _ ) > ver )
+  def filesLaterThan( ver: Int, fileNameList: List[String] ) = fileNameList.filter( fNum( _ ) > ver )
 
-  def encapsulateWithRecords( records:Stream[String] ) = records.map( FlatFileRecord( _ ) )
+  def encapsulateWithRecords( records: Stream[String] ) = records.map( FlatFileRecord( _ ) )
 }
 
 trait FetchRemoteResources {
-  def fetchFileListing( url:String ):Future[List[String]]
+  def fetchFileListing( url: String ): Future[List[String]]
 
-  def fetchFilePlainTextLines( url:String, fileName:String ):Future[Stream[String]]
+  def fetchFilePlainTextLines( url: String, fileName: String ): Future[Stream[String]]
 }

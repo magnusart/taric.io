@@ -78,7 +78,7 @@ class LocatingTaricFilesSpec extends FlatSpec with ShouldMatchers {
 
     val typedRecords = encapsulateWithRecords( records.toStream )
 
-    val flattenedRecords:String = typedRecords.toList.map( _.line ).reduceLeft( _ + "\n" + _ )
+    val flattenedRecords: String = typedRecords.toList.map( _.line ).reduceLeft( _ + "\n" + _ )
 
     flattenedRecords should be equals ( recordFile )
   }

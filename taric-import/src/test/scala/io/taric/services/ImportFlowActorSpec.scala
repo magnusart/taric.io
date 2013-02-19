@@ -1,13 +1,13 @@
 package io.taric
 package services
 
-import akka.actor.{Props, ActorRef, ActorSystem}
-import akka.testkit.{TestProbe, TestKit}
-import org.scalatest.{GivenWhenThen, FeatureSpec, BeforeAndAfterAll}
+import akka.actor.{ Props, ActorRef, ActorSystem }
+import akka.testkit.{ TestProbe, TestKit }
+import org.scalatest.{ GivenWhenThen, FeatureSpec, BeforeAndAfterAll }
 import org.scalatest.matchers.ShouldMatchers
 import io.taric.TestSetup._
 import io.taric.controllers.TaricImportFSM
-import io.taric.{TestData, ImportApplication}
+import io.taric.{ TestData, ImportApplication }
 import concurrent.Future
 import services.CommandBus._
 import services.EventBus._
@@ -27,14 +27,14 @@ import services.EventBus.TotDifUrls
  * Copyright Solvies AB 2013
  * For licensing information see LICENSE file
  */
-class ImportFlowActorSpec( _system:ActorSystem ) extends TestKit( _system ) with FeatureSpec
-with GivenWhenThen with ShouldMatchers with BeforeAndAfterAll {
-  def this( ) = this( ActorSystem( "TestSystem3", testConf ) )
+class ImportFlowActorSpec( _system: ActorSystem ) extends TestKit( _system ) with FeatureSpec
+  with GivenWhenThen with ShouldMatchers with BeforeAndAfterAll {
+  def this() = this( ActorSystem( "TestSystem3", testConf ) )
   val totUrl = "ftp://M10746-1:kehts3qW@distr.tullverket.se:21/www1/distr/taric/flt/tot/"
   val difUrl = "ftp://M10746-1:kehts3qW@distr.tullverket.se:21/www1/distr/taric/flt/dif/"
 
   override def afterAll {
-    system.shutdown( )
+    system.shutdown()
   }
 
   info( "As subscriber to Taric updates" )
@@ -43,35 +43,35 @@ with GivenWhenThen with ShouldMatchers with BeforeAndAfterAll {
 
   // Domain logic mocks setup
   implicit val remoteRes = new FetchRemoteResources {
-    def fetchFileListing( url:String ):Future[List[String]] = url match {
-      case t if t == totUrl => Future( TestData.totFiles )
-      case d if d == difUrl => Future( TestData.difFiles )
+    def fetchFileListing( url: String ): Future[List[String]] = url match {
+      case t if t == totUrl ⇒ Future( TestData.totFiles )
+      case d if d == difUrl ⇒ Future( TestData.difFiles )
     }
-    def fetchFilePlainTextLines( url:String, fileName:String ):Future[Stream[String]] = (url, fileName) match {
-      case (totUrl, "3090_KA.tot.gz.pgp") => Future( TestData.kaFile.split( "\n" ).toStream )
-      case (totUrl, "3090_KI.tot.gz.pgp") => Future( TestData.kiFile.split( "\n" ).toStream )
-      case (totUrl, "3090_KJ.tot.gz.pgp") => Future( TestData.kjFile.split( "\n" ).toStream )
-      case _ => Future( Stream.empty )
+    def fetchFilePlainTextLines( url: String, fileName: String ): Future[Stream[String]] = ( url, fileName ) match {
+      case ( totUrl, "3090_KA.tot.gz.pgp" ) ⇒ Future( TestData.kaFile.split( "\n" ).toStream )
+      case ( totUrl, "3090_KI.tot.gz.pgp" ) ⇒ Future( TestData.kiFile.split( "\n" ).toStream )
+      case ( totUrl, "3090_KJ.tot.gz.pgp" ) ⇒ Future( TestData.kjFile.split( "\n" ).toStream )
+      case _                                ⇒ Future( Stream.empty )
     }
   }
   implicit val configMock = ManageSystemConfigurationHardCoded
 
   // Probes
-  val eventProbe = TestProbe( )
-  val commandProbe = TestProbe( )
+  val eventProbe = TestProbe()
+  val commandProbe = TestProbe()
 
   val app = new ImportApplication {
     val systemRef = system
-    val commandBusRef:ActorRef  = systemRef.actorOf( Props[CommandBus], "command-bus" )
-    val eventBusRef:ActorRef    = systemRef.actorOf( Props[EventBus],   "event-bus"   )
+    val commandBusRef: ActorRef = systemRef.actorOf( Props[CommandBus], "command-bus" )
+    val eventBusRef: ActorRef = systemRef.actorOf( Props[EventBus], "event-bus" )
 
     // Dependency injection
-    implicit val eventProducer    = new EventProducer   { val eventBus:ActorRef   = eventBusRef   }
-    implicit val commandProducer  = new CommandProducer { val commandBus:ActorRef = commandBusRef }
+    implicit val eventProducer = new EventProducer { val eventBus: ActorRef = eventBusRef }
+    implicit val commandProducer = new CommandProducer { val commandBus: ActorRef = commandBusRef }
 
-    val controller:ActorRef       = systemRef.actorOf( Props( new TaricImportFSM( ) ),       "taric-controller" )
-    val systemRes:ActorRef        = systemRef.actorOf( Props( new ApplicationResources( ) ), "app-resources"    )
-    val remoteResources:ActorRef  = systemRef.actorOf( Props( new RemoteResources( ) ),      "remote-resources" )
+    val controller: ActorRef = systemRef.actorOf( Props( new TaricImportFSM() ), "taric-controller" )
+    val systemRes: ActorRef = systemRef.actorOf( Props( new ApplicationResources() ), "app-resources" )
+    val remoteResources: ActorRef = systemRef.actorOf( Props( new RemoteResources() ), "remote-resources" )
 
     eventBusRef ! Listen( eventProbe.ref )
     commandBusRef ! Listen( commandProbe.ref )
@@ -92,29 +92,28 @@ with GivenWhenThen with ShouldMatchers with BeforeAndAfterAll {
 
     eventProbe.expectMsg( Prepared )
 
-    commandProbe.expectMsgAllOf( 
-      FetchListing( ManageSystemConfigurationHardCoded.totPattern, totUrl ), 
+    commandProbe.expectMsgAllOf(
+      FetchListing( ManageSystemConfigurationHardCoded.totPattern, totUrl ),
       FetchListing( ManageSystemConfigurationHardCoded.difPattern, difUrl ) )
 
     Then( "browse for new remote resources" )
     Then( "determine which of these resources to fetch" )
     commandProbe.expectMsgAllOf( 2 seconds,
-      FetchRemoteResource(totUrl, "3090_KA.tot.gz.pgp"),
-      FetchRemoteResource(totUrl, "3090_KI.tot.gz.pgp"),
-      FetchRemoteResource(totUrl, "3090_KJ.tot.gz.pgp"),
-      FetchRemoteResource(difUrl, "3091_DA.dif.gz.pgp"),
-      FetchRemoteResource(difUrl, "3091_DI.dif.gz.pgp"),
-      FetchRemoteResource(difUrl, "3091_DJ.dif.gz.pgp"),
-      FetchRemoteResource(difUrl, "3092_DA.dif.gz.pgp"),
-      FetchRemoteResource(difUrl, "3092_DI.dif.gz.pgp"),
-      FetchRemoteResource(difUrl, "3092_DJ.dif.gz.pgp"),
-      FetchRemoteResource(difUrl, "3093_DA.dif.gz.pgp"),
-      FetchRemoteResource(difUrl, "3093_DI.dif.gz.pgp"),
-      FetchRemoteResource(difUrl, "3093_DJ.dif.gz.pgp"),
-      FetchRemoteResource(difUrl, "3094_DA.dif.gz.pgp"),
-      FetchRemoteResource(difUrl, "3094_DI.dif.gz.pgp"),
-      FetchRemoteResource(difUrl, "3094_DJ.dif.gz.pgp")
-    )
+      FetchRemoteResource( totUrl, "3090_KA.tot.gz.pgp" ),
+      FetchRemoteResource( totUrl, "3090_KI.tot.gz.pgp" ),
+      FetchRemoteResource( totUrl, "3090_KJ.tot.gz.pgp" ),
+      FetchRemoteResource( difUrl, "3091_DA.dif.gz.pgp" ),
+      FetchRemoteResource( difUrl, "3091_DI.dif.gz.pgp" ),
+      FetchRemoteResource( difUrl, "3091_DJ.dif.gz.pgp" ),
+      FetchRemoteResource( difUrl, "3092_DA.dif.gz.pgp" ),
+      FetchRemoteResource( difUrl, "3092_DI.dif.gz.pgp" ),
+      FetchRemoteResource( difUrl, "3092_DJ.dif.gz.pgp" ),
+      FetchRemoteResource( difUrl, "3093_DA.dif.gz.pgp" ),
+      FetchRemoteResource( difUrl, "3093_DI.dif.gz.pgp" ),
+      FetchRemoteResource( difUrl, "3093_DJ.dif.gz.pgp" ),
+      FetchRemoteResource( difUrl, "3094_DA.dif.gz.pgp" ),
+      FetchRemoteResource( difUrl, "3094_DI.dif.gz.pgp" ),
+      FetchRemoteResource( difUrl, "3094_DJ.dif.gz.pgp" ) )
 
     Then( "fetch the remote resources, yielding line records" )
     eventProbe.expectMsgClass( classOf[ProducedFlatFileRecord] )
