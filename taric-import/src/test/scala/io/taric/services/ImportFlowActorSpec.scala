@@ -17,7 +17,6 @@ import akka.routing.Listen
 import TestData._
 import services.EventBus.VersionUrlsAggregate
 import services.CommandBus.FetchRemoteResource
-import akka.routing.Listen
 import services.EventBus.TaricPathPattern
 import services.EventBus.TotDifUrls
 
@@ -30,8 +29,8 @@ import services.EventBus.TotDifUrls
 class ImportFlowActorSpec( _system: ActorSystem ) extends TestKit( _system ) with FeatureSpec
   with GivenWhenThen with ShouldMatchers with BeforeAndAfterAll {
   def this() = this( ActorSystem( "TestSystem3", testConf ) )
-  val totUrl = "ftp://M10746-1:kehts3qW@distr.tullverket.se:21/www1/distr/taric/flt/tot/"
-  val difUrl = "ftp://M10746-1:kehts3qW@distr.tullverket.se:21/www1/distr/taric/flt/dif/"
+  val totUrl = s"${ManageSystemConfigurationHardCoded.webUrl}${ManageSystemConfigurationHardCoded.totPath}"
+  val difUrl = s"${ManageSystemConfigurationHardCoded.webUrl}${ManageSystemConfigurationHardCoded.difPath}"
 
   override def afterAll {
     system.shutdown()
@@ -59,6 +58,7 @@ class ImportFlowActorSpec( _system: ActorSystem ) extends TestKit( _system ) wit
   // Probes
   val eventProbe = TestProbe()
   val commandProbe = TestProbe()
+  val remoteEventProbe = TestProbe()
 
   val app = new ImportApplication {
     val systemRef = system
@@ -69,10 +69,12 @@ class ImportFlowActorSpec( _system: ActorSystem ) extends TestKit( _system ) wit
     implicit val eventProducer = new EventProducer { val eventBus: ActorRef = eventBusRef }
     implicit val commandProducer = new CommandProducer { val commandBus: ActorRef = commandBusRef }
 
-    val controller: ActorRef = systemRef.actorOf( Props( new TaricImportFSM() ), "taric-controller" )
-    val systemRes: ActorRef = systemRef.actorOf( Props( new ApplicationResources() ), "app-resources" )
-    val remoteResources: ActorRef = systemRef.actorOf( Props( new RemoteResources() ), "remote-resources" )
+    val controller = systemRef.actorOf( Props( new TaricImportFSM() ), "taric-controller" )
+    val systemRes = systemRef.actorOf( Props( new ApplicationResources() ), "app-resources" )
+    val remoteResources = systemRef.actorOf( Props( new RemoteResources() ), "remote-resources" )
+    val parserEventBusRef = remoteEventProbe.ref
 
+    // Message spies
     eventBusRef ! Listen( eventProbe.ref )
     commandBusRef ! Listen( commandProbe.ref )
   }

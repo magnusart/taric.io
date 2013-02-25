@@ -10,9 +10,9 @@ import akka.pattern.pipe
 import CommandBus._
 import EventBus._
 
-class Parser extends Actor with ActorLogging {
+class Parser( implicit c: CommandProducer ) extends Actor with ActorLogging {
   def receive = {
-    case _ ⇒
+    case ProducedFlatFileRecord( record ) ⇒ c.commandBus ! ParseFlatFileRecord( record )
   }
 }
 
@@ -25,5 +25,14 @@ class TaricCodeConverterWorker( implicit e: EventProducer ) extends Actor with A
       case Right( rec ) ⇒ e.eventBus ! ParsedAsTaric( rec )
       case Left( m )    ⇒ log.error( m )
     }
+  }
+}
+
+class ProductCodeRepository( implicit e: EventProducer ) extends Actor with ActorLogging {
+
+  def receive = {
+    case ParsedAsTaric( e: ExistingTaricCode ) ⇒
+    case ParsedAsTaric( n: NewTaricCode )      ⇒
+    case ParsedAsTaric( r: ReplaceTaricCode )  ⇒
   }
 }

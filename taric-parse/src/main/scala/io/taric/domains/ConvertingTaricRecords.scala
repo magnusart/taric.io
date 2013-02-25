@@ -29,7 +29,7 @@ object TaricCodeExtensions {
       case FlatFileRecord( line ) if ( line.take( 1 ) == "J" ) ⇒ Right( TaricJParser.parseJCode( line ) )
       case FlatFileRecord( line ) if ( line.take( 1 ) == "Z" ) ⇒ Right( TaricZParser.parseZHeader( line ) )
     }
-    else Left( s"Unknown forrmat for $record." )
+    else Left( s"Unknown format for $record." )
   }
 
 }

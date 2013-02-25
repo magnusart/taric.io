@@ -20,7 +20,7 @@ class CommandBus extends Actor with ActorLogging with Listeners {
   import CommandBus.Command
 
   def receive = listenerManagement orElse {
-    case cmd: Command ⇒ gossip( cmd )( sender ); log.info( s"Command: $cmd" )
+    case cmd: Command ⇒ gossip( cmd )( sender ); log.debug( s"Command: $cmd" )
     case Failure( f ) ⇒ log.error( s"Actor sent failure: $f. Message: ${f.getStackTraceString}" )
     case a            ⇒ log.error( s"Got a unkown object on the report bus: $a." )
   }
@@ -49,7 +49,7 @@ class EventBus extends Actor with ActorLogging with Listeners {
   import EventBus.Event
 
   def receive = listenerManagement orElse {
-    case ev: Event    ⇒ gossip( ev )( sender ); log.info( s"Event: $ev" )
+    case ev: Event    ⇒ gossip( ev )( sender ); log.debug( s"Event: $ev" )
     case Failure( f ) ⇒ log.error( s"Actor sent failure: $f. Message: ${f.getStackTraceString}" )
     case a            ⇒ log.error( s"Got a unkown object on the report bus: $a." )
   }
@@ -66,6 +66,8 @@ object EventBus {
   case object ImportFinished extends Event
   case class ReplacedCurrentVersion( oldVer: Int, newVer: Int ) extends Event
   case class ProducedFlatFileRecord( record: FlatFileRecord ) extends Event
+  case class LastFlatFileRecordForFile( record: FlatFileRecord ) extends Event
+  case class BatchCompleted( batchId: String, noOfRecords: Int ) extends Event
 
   case class CurrentVersion( ver: Int ) extends Event
   case class Listing( url: String, files: List[String], latestVer: Int ) extends Event

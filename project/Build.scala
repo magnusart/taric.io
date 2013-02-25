@@ -6,7 +6,7 @@ import com.typesafe.sbt.SbtScalariform
 import com.typesafe.sbt.SbtScalariform.ScalariformKeys
 
 object TaricBuild extends Build {
-  val Organization = "taric.io"
+  val Organization = "io.taric"
   val Version = "0.0.1-SNAPSHOT"
   val ScalaVersion = "2.10.0"
 
@@ -110,7 +110,7 @@ object TaricBuild extends Build {
   object Dependency {
     // ---- Dependency versions ----
     object Version {
-      val Akka          = "2.2-SNAPSHOT"
+      val Akka          = "2.1.0"
       val ScalaTest     = "2.0.M5b"
       val Bouncycastle  = "1.47"
       val RedisClient   = "2.9"

@@ -29,8 +29,20 @@ class RemoteResources( implicit d: FetchRemoteResources, e: EventProducer ) exte
     reports ← Future( ( records map ProducedFlatFileRecord ) )
   } yield reports
 
-  private[this] def emitAll( futureRecords: Future[Stream[ProducedFlatFileRecord]] ) =
-    for ( records ← futureRecords ) yield records.foreach( e.eventBus ! _ )
+  // Emits last Record as a special last record. Unpure method with side effects.
+  private[this] def emitBatch( stream: Future[Stream[ProducedFlatFileRecord]], batchId: String ) {
+    @scala.annotation.tailrec
+    def emitStream( s: Stream[ProducedFlatFileRecord], accu: Int ): Unit =
+      if ( s.tail == Nil ) {
+        e.eventBus ! s.head
+        e.eventBus ! BatchCompleted( batchId, accu )
+      } else {
+        e.eventBus ! s.head
+        emitStream( s.tail, accu + 1 )
+      }
+
+    for ( s ← stream ) yield emitStream( s, 0 )
+  }
 
   private[this] def listComputeLatestVer( pattern: String, url: String ) = for {
     filteredFileListing ← fetchFilterFileListing( pattern, url )
@@ -39,7 +51,7 @@ class RemoteResources( implicit d: FetchRemoteResources, e: EventProducer ) exte
 
   def receive = {
     case FetchListing( pattern, url )         ⇒ listComputeLatestVer( pattern, url ) pipeTo sender
-    case FetchRemoteResource( url, fileName ) ⇒ emitAll( fetchRemoteFileLines( url, fileName ) )
+    case FetchRemoteResource( url, fileName ) ⇒ emitBatch( fetchRemoteFileLines( url, fileName ), "BATCH NAME" )
   }
 }
 
@@ -48,7 +60,6 @@ class ApplicationResources( implicit c: FetchConfigurationValues, e: EventProduc
   var currentVersion = 0
 
   def receive = {
-    // TODO 2012-12-31 (Magnus Andersson) Store this in AppDB or filesystem
     case FetchCurrentVersion ⇒ sender ! CurrentVersion( currentVersion )
 
     case ReplaceCurrentVersion( ver ) ⇒
