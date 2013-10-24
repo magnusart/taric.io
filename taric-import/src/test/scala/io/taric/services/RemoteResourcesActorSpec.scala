@@ -23,7 +23,13 @@ import controllers.ImportController
  * For licensing information see LICENSE file
  */
 
-class RemoteResourcesActorSpec( _system: ActorSystem ) extends TestKit( _system ) with ImplicitSender with FlatSpec with ShouldMatchers with BeforeAndAfterAll {
+class RemoteResourcesActorSpec( _system: ActorSystem )
+  extends TestKit( _system )
+  with ImplicitSender
+  with FlatSpec
+  with ShouldMatchers
+  with BeforeAndAfterAll {
+
   def this() = this( ActorSystem( "RemoteResourcesActorSystem", testConf ) )
   val probe = TestProbe()
   implicit val timeout = Timeout( 3 seconds )
@@ -78,29 +84,29 @@ class RemoteResourcesActorSpec( _system: ActorSystem ) extends TestKit( _system 
 
     resourcesRef ! FetchRemoteResource( "TOT", "KA" )
 
-    val msgsA = checkForFlatFileRecords( probe, 46 )
-    msgsA.length should be( 46 )
+    val msgsA = checkForFlatFileRecords( probe, 47 )
+    msgsA.length should be( 47 )
     msgsA.reduceLeft( _ && _ ) should be( true )
     probe.expectNoMsg()
-
     resourcesRef ! FetchRemoteResource( "TOT", "KI" )
 
-    val msgsI = checkForFlatFileRecords( probe, 9 )
-    msgsI.length should be( 9 )
+    val msgsI = checkForFlatFileRecords( probe, 10 )
+    msgsI.length should be( 10 )
     msgsI.reduceLeft( _ && _ ) should be( true )
     probe.expectNoMsg( 20 millis )
 
     resourcesRef ! FetchRemoteResource( "TOT", "KJ" )
 
-    val msgsJ = checkForFlatFileRecords( probe, 9 )
-    msgsJ.length should be( 9 )
+    val msgsJ = checkForFlatFileRecords( probe, 10 )
+    msgsJ.length should be( 10 )
     msgsJ.reduceLeft( _ && _ ) should be( true )
     probe.expectNoMsg( 20 millis )
   }
 
   private[this] def checkForFlatFileRecords( probe: TestProbe, maxMessages: Int ) = probe
     .receiveWhile( 1500 millis, 200 millis, maxMessages ) {
-      case r: ProducedFlatFileRecord ⇒ true
-      case e                         ⇒ println( s"Got incorrect message $e." ); false
+      case BatchCompleted( _, noMessages ) ⇒ noMessages == ( maxMessages - 2 )
+      case r: ProducedFlatFileRecord       ⇒ true
+      case e                               ⇒ println( s"Got incorrect message $e." ); false
     }
 }

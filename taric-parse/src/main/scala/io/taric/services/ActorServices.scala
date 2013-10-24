@@ -12,8 +12,22 @@ import EventBus._
 
 class Parser( implicit c: CommandProducer ) extends Actor with ActorLogging {
   def receive = {
-    case ProducedFlatFileRecord( record ) ⇒ c.commandBus ! ParseFlatFileRecord( record )
+    case ProducedFlatFileRecord( record, batchId ) ⇒ c.commandBus Aggregate //c.commandBus ! ParseFlatFileRecord( record )
   }
+}
+
+class BatchAggregator( 
+  implicit c: CommandProducer, 
+  implicit e: EventProducer ) 
+  extends Actor
+  with ActorLogging {
+    var batches:Map[BatchId, List[ProducedFlatFileRecord]] = Map.empty
+    var ready:Map[BatchId, Int] = Map.empty
+
+    def receive = {
+      case ProducedFlatFileRecord( record, batchId ) =>
+      case BatchCompleted( bachId, noMessages ) =>  
+    }
 }
 
 class TaricCodeConverterWorker( implicit e: EventProducer ) extends Actor with ActorLogging {

@@ -4,7 +4,7 @@ package services
 import akka.actor._
 import domains._
 import concurrent.Future
-
+import util.IdGenerator._
 import akka.pattern.pipe
 
 import CommandBus._
@@ -23,10 +23,10 @@ class RemoteResources( implicit d: FetchRemoteResources, e: EventProducer ) exte
     fileVersion ← Future( latestFileVersion( filteredNames ) )
   } yield fileVersion
 
-  private[this] def fetchRemoteFileLines( url: String, fileName: String ) = for {
+  private[this] def fetchRemoteFileLines( url: String, fileName: String, batchId: BatchId ) = for {
     lines ← d.fetchFilePlainTextLines( url, fileName )
     records ← Future( ( lines map FlatFileRecord ) )
-    reports ← Future( ( records map ProducedFlatFileRecord ) )
+    reports ← Future( ( records map ( ProducedFlatFileRecord( _, batchId ) ) ) )
   } yield reports
 
   // Emits last Record as a special last record. Unpure method with side effects.
@@ -50,8 +50,11 @@ class RemoteResources( implicit d: FetchRemoteResources, e: EventProducer ) exte
   } yield Listing( url, filteredFileListing, version )
 
   def receive = {
-    case FetchListing( pattern, url )         ⇒ listComputeLatestVer( pattern, url ) pipeTo sender
-    case FetchRemoteResource( url, fileName ) ⇒ emitBatch( fetchRemoteFileLines( url, fileName ), "BATCH NAME" )
+    case FetchListing( pattern, url ) ⇒ listComputeLatestVer( pattern, url ) pipeTo sender
+    case FetchRemoteResource( url, fileName ) ⇒ {
+      val batchId: BatchId = genNewId()
+      emitBatch( fetchRemoteFileLines( url, fileName, batchId ), batchId )
+    }
   }
 }
 

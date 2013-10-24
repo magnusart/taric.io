@@ -59,15 +59,17 @@ object EventBus {
     def eventBus: ActorRef
   }
 
+  type BatchId = String
+
   sealed trait Event
   case object StartedImport extends Event
   case object Prepared extends Event
   case object FinishedBrowsing extends Event
   case object ImportFinished extends Event
   case class ReplacedCurrentVersion( oldVer: Int, newVer: Int ) extends Event
-  case class ProducedFlatFileRecord( record: FlatFileRecord ) extends Event
+  case class ProducedFlatFileRecord( record: FlatFileRecord, batchId: BatchId ) extends Event
   case class LastFlatFileRecordForFile( record: FlatFileRecord ) extends Event
-  case class BatchCompleted( batchId: String, noOfRecords: Int ) extends Event
+  case class BatchCompleted( batchId: BatchId, noOfRecords: Int ) extends Event
 
   case class CurrentVersion( ver: Int ) extends Event
   case class Listing( url: String, files: List[String], latestVer: Int ) extends Event

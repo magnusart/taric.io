@@ -100,25 +100,14 @@ class ImportFlowActorSpec( _system: ActorSystem ) extends TestKit( _system ) wit
 
     Then( "browse for new remote resources" )
     Then( "determine which of these resources to fetch" )
-    commandProbe.expectMsgAllOf( 2 seconds,
+    commandProbe.expectMsgAllOf( 1 seconds,
       FetchRemoteResource( totUrl, "3090_KA.tot.gz.pgp" ),
       FetchRemoteResource( totUrl, "3090_KI.tot.gz.pgp" ),
-      FetchRemoteResource( totUrl, "3090_KJ.tot.gz.pgp" ),
-      FetchRemoteResource( difUrl, "3091_DA.dif.gz.pgp" ),
-      FetchRemoteResource( difUrl, "3091_DI.dif.gz.pgp" ),
-      FetchRemoteResource( difUrl, "3091_DJ.dif.gz.pgp" ),
-      FetchRemoteResource( difUrl, "3092_DA.dif.gz.pgp" ),
-      FetchRemoteResource( difUrl, "3092_DI.dif.gz.pgp" ),
-      FetchRemoteResource( difUrl, "3092_DJ.dif.gz.pgp" ),
-      FetchRemoteResource( difUrl, "3093_DA.dif.gz.pgp" ),
-      FetchRemoteResource( difUrl, "3093_DI.dif.gz.pgp" ),
-      FetchRemoteResource( difUrl, "3093_DJ.dif.gz.pgp" ),
-      FetchRemoteResource( difUrl, "3094_DA.dif.gz.pgp" ),
-      FetchRemoteResource( difUrl, "3094_DI.dif.gz.pgp" ),
-      FetchRemoteResource( difUrl, "3094_DJ.dif.gz.pgp" ) )
+      FetchRemoteResource( totUrl, "3090_KJ.tot.gz.pgp" ) )
 
     Then( "fetch the remote resources, yielding line records" )
     eventProbe.expectMsgClass( classOf[ProducedFlatFileRecord] )
+
 
     // Then( "parse the line records into structured TaricCodes" )
     // Then( "merge information about existing codes, new codes and replaced codes" )

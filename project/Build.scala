@@ -96,7 +96,7 @@ object TaricBuild extends Build {
     import Dependency._
 
     val akka   = Seq( akkaActor, akkaRemote, akkaTestKit )
-    val crypto = Seq( bcprov, bcpkix, bcpg )
+    val crypto = Seq( bcprov, bcpkix, bcpg, codec )
     val io     = Seq( scalaIO )
     val date   = Seq( scalaTime )
     val test   = Seq( akkaTestKit, scalaTest )
@@ -110,6 +110,7 @@ object TaricBuild extends Build {
       val Bouncycastle  = "1.47"
       val ScalaIO       = "0.4.2"
       val ScalaTime     = "0.6"
+      val CommonsCodec  = "1.8"
     }
 
     // ---- Application dependencies ----
@@ -126,6 +127,8 @@ object TaricBuild extends Build {
     // ---- Test dependencies ----
     val akkaTestKit   = "com.typesafe.akka" %% "akka-testkit" % Version.Akka % "test"
     val scalaTest     = "org.scalatest" % "scalatest_2.10" % Version.ScalaTest % "test"
+
+    val codec         = "commons-codec"    % "commons-codec"  % Version.CommonsCodec
   }
 
 }
