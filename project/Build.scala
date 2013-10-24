@@ -1,9 +1,8 @@
 import sbt._
 import sbt.Keys._
-import com.typesafe.sbt.SbtStartScript
-import com.github.retronym.SbtOneJar
 import com.typesafe.sbt.SbtScalariform
 import com.typesafe.sbt.SbtScalariform.ScalariformKeys
+import spray.revolver.RevolverPlugin._
 
 object TaricBuild extends Build {
   val Organization = "io.taric"
@@ -34,8 +33,7 @@ object TaricBuild extends Build {
   lazy val taric = Project(
     id = "taric",
     base = file( "." ),
-    settings = defaultSettings ++ buildSettings ++
-      Seq( SbtStartScript.stage in Compile := Unit ),
+    settings = defaultSettings ++ buildSettings ++ depGraphSettings,
     aggregate = Seq( timport, parse, core )
   )
 
@@ -43,8 +41,7 @@ object TaricBuild extends Build {
     id = "taric-import",
     base = file( "taric-import" ),
     dependencies = Seq( core ),
-    settings = jarSettings ++ defaultSettings ++ buildSettings ++ SbtOneJar.oneJarSettings ++
-      SbtStartScript.startScriptForJarSettings ++
+    settings = jarSettings ++ defaultSettings ++ buildSettings ++ depGraphSettings ++
       Seq(
         libraryDependencies ++= Dependencies.crypto ++
           Dependencies.io ++
@@ -57,7 +54,7 @@ object TaricBuild extends Build {
     id = "taric-core",
     base = file( "taric-core" ),
     dependencies = Seq( ),
-    settings = jarSettings ++ defaultSettings ++ buildSettings ++ Seq(
+    settings = jarSettings ++ defaultSettings ++ buildSettings ++ depGraphSettings ++ Seq(
         libraryDependencies ++= Dependencies.akka
       )
   )
@@ -66,11 +63,9 @@ object TaricBuild extends Build {
     id = "taric-parse",
     base = file( "taric-parse" ),
     dependencies = Seq( core ),
-    settings = jarSettings ++ defaultSettings ++ buildSettings ++ SbtOneJar.oneJarSettings ++
-      SbtStartScript.startScriptForJarSettings ++
+    settings = jarSettings ++ defaultSettings ++ buildSettings ++ depGraphSettings ++
       Seq(
-        libraryDependencies ++= Dependencies.db ++
-            Dependencies.test
+        libraryDependencies ++= Dependencies.test
       )
   )
 
@@ -93,6 +88,7 @@ object TaricBuild extends Build {
     parallelExecution in Test := false
   )
 
+ lazy val depGraphSettings = net.virtualvoid.sbt.graph.Plugin.graphSettings
   lazy val jarSettings = Seq( exportJars := true )
 
   object Dependencies {
@@ -101,7 +97,6 @@ object TaricBuild extends Build {
 
     val akka   = Seq( akkaActor, akkaRemote, akkaTestKit )
     val crypto = Seq( bcprov, bcpkix, bcpg )
-    val db     = Seq( redisClient )
     val io     = Seq( scalaIO )
     val date   = Seq( scalaTime )
     val test   = Seq( akkaTestKit, scalaTest )
@@ -113,8 +108,7 @@ object TaricBuild extends Build {
       val Akka          = "2.1.0"
       val ScalaTest     = "2.0.M5b"
       val Bouncycastle  = "1.47"
-      val RedisClient   = "2.9"
-      val ScalaIO       = "0.4.1"
+      val ScalaIO       = "0.4.2"
       val ScalaTime     = "0.6"
     }
 
@@ -126,7 +120,6 @@ object TaricBuild extends Build {
     val bcpkix        = "org.bouncycastle" % "bcpkix-jdk15on" % Version.Bouncycastle
     val bcpg          = "org.bouncycastle" % "bcpg-jdk15on" % Version.Bouncycastle
 
-    val redisClient   = "net.debasishg" %% "redisclient" % Version.RedisClient
     val scalaIO       = "com.github.scala-incubator.io" %% "scala-io-core" % Version.ScalaIO
     val scalaTime     = "org.scalaj" % "scalaj-time_2.10.0-M7" % Version.ScalaTime
 
