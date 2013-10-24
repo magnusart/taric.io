@@ -1,6 +1,6 @@
 package io.taric
 
-import akka.actor.{ActorRef, Props, ActorSystem}
+import akka.actor.{ ActorRef, Props, ActorSystem }
 import com.typesafe.config._
 import akka.routing.RoundRobinRouter
 import scala.concurrent.duration._
@@ -13,6 +13,6 @@ import akka.routing.Listen
 object CoreApp extends App {
   val config = ConfigFactory.load()
 
-  val system = ActorSystem("TaricCoreSystem", config)
+  val system = ActorSystem( "TaricCoreSystem", config )
 
 }

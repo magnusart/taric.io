@@ -11,5 +11,6 @@ import scala.concurrent.ExecutionContext
  */
 package object taric {
   implicit val executorService = Executors.newCachedThreadPool()
-  implicit val executorContext = ExecutionContext.fromExecutorService(executorService)
+  implicit val executorContext = ExecutionContext.fromExecutorService( executorService )
+
 }

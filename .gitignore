@@ -17,3 +17,4 @@ bin
 .cache
 .ensime
 .ensime_lucene
+*.sublime-project

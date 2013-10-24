@@ -1,66 +1,66 @@
 package io.taric
 
-import akka.actor.{ActorRef, Props, ActorSystem}
+import akka.actor.{ ActorRef, Props, ActorSystem }
 import com.typesafe.config._
-import akka.routing.RoundRobinRouter
+import domains.{ ManageSystemConfigurationHardCoded, FetchRemoteResources }
 import scala.concurrent.duration._
-import io.taric.models._
 import services._
 import akka.routing.Listen
 import controllers.TaricImportFSM
-;
+import services.CommandBus.{ CommandProducer, StartImport }
+import services.EventBus.EventProducer
+import concurrent.Future
+import unpure.TaricWebIO
 
-object ImportApp extends App {
-  val config = ConfigFactory.load()
+object ImportApp extends App with ImportApplication {
 
-  val system = ActorSystem("TaricImportSystem", config)
+  val config = ConfigFactory.load( "application.conf" )
+  val systemRef = ActorSystem( "TaricImportSystem", config )
 
-  system.log.info("Stared Actorsystem {} for Taric.io ImportApp.", system.name)
+  // Message buses
+  val commandBusRef: ActorRef = systemRef.actorOf( Props[CommandBus], "command-bus" )
+  val eventBusRef: ActorRef = systemRef.actorOf( Props[EventBus], "event-bus" )
 
-  val commandBus = system.actorOf(Props[CommandBus], "command-bus")
-  val reportBus = system.actorOf(Props[ReportBus], "report-bus")
+  // Dependency injection for services
+  implicit val eventProducer = new EventProducer { val eventBus: ActorRef = eventBusRef }
+  implicit val commandProducer = new CommandProducer { val commandBus: ActorRef = commandBusRef }
+  implicit val remoteRes = TaricWebIO
+  implicit val fetchConfig = ManageSystemConfigurationHardCoded
 
-  // Controller
-  val taricController = system.actorOf(Props[TaricImportFSM], "taric-controller")
+  // Services
+  val controller: ActorRef = systemRef.actorOf( Props( new TaricImportFSM ), "taric-controller" )
+  val systemRes: ActorRef = systemRef.actorOf( Props( new ApplicationResources ), "app-resources" )
+  val remoteResources: ActorRef = systemRef.actorOf( Props( new RemoteResources ), "remote-resources" )
+  val parserEventBusRef = systemRef.actorFor( config.getString( "taric-parser-eventbus" ) )
 
-  // ActorServices
-  val systemRes = system.actorOf(Props[ApplicationResources], "app-resources")
-  val taricBrowser = system.actorOf(Props[TaricFtpBrowser], "taric-ftp")
-  val pgpDecryptor = system.actorOf(Props[PgpDecryptor], "pgp-decryptor")
-  val gzipDecompressor = system.actorOf(Props[GzipDecompressor], "gzip-decompressor")
-  val taricParser = system.actorOf(Props[TaricStreamParser], "taric-parser")
-  val sqlPersister = system.actorOf(Props[SqlPersister], "taric-sql-persister")
-  val plainTextPersister = system.actorOf(Props[PlainTextPersister], "plain-text-persister")
-  // Routed ActorServices
-  val taricDebugPrinter1 = system.actorOf(Props[DebugLogger], "debug-logger-1")
-  val taricDebugPrinter2 = system.actorOf(Props[DebugLogger], "debug-logger-2")
-  val taricDebugPrinter3 = system.actorOf(Props[DebugLogger], "debug-logger-3")
-  val routees = Vector[ActorRef](taricDebugPrinter1, taricDebugPrinter2, taricDebugPrinter3)
-
-  // Route these
-  val debugRouter = system.actorOf(Props().withRouter(RoundRobinRouter(routees = routees)))
-
-  // Register Controller with report bus
-  reportBus ! Listen(taricController)
-
-  // Register ActorServices with command bus
-  commandBus ! Listen(systemRes)
-  commandBus ! Listen(taricBrowser)
-  commandBus ! Listen(pgpDecryptor)
-  commandBus ! Listen(gzipDecompressor)
-  commandBus ! Listen(taricParser)
-  commandBus ! Listen(debugRouter)
-  commandBus ! Listen(sqlPersister)
-  commandBus ! Listen(plainTextPersister)
-
-  system.log.info("Created actors and message buses.")
-
-  system.log.info("Starting import scheduler.")
-
-  // Start scheduler
-  (system scheduler) schedule(0 seconds, 60.seconds, reportBus, ReadyToStartImport)
-
-  system.log.info("System ready.")
-
+  this.startSystem
 }
 
+trait ImportApplication {
+  def systemRef: ActorSystem
+  def commandBusRef: ActorRef
+  def eventBusRef: ActorRef
+  def parserEventBusRef: ActorRef
+  def controller: ActorRef
+  def systemRes: ActorRef
+  def remoteResources: ActorRef
+
+  private[this] def registerListeners {
+    commandBusRef ! Listen( systemRes )
+    commandBusRef ! Listen( remoteResources )
+    eventBusRef ! Listen( parserEventBusRef )
+  }
+
+  // Start scheduler
+  private[this] def startScheduler = ( systemRef scheduler ) schedule ( 0 seconds, 6 hours, controller, StartImport )
+
+  def prepareSystem {
+    registerListeners
+  }
+
+  def startSystem {
+    prepareSystem
+    startScheduler
+    systemRef.log.info( "Started {} for Taric.io import module.", systemRef.name )
+  }
+}
