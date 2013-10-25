@@ -18,13 +18,17 @@ object LocatingTaricFiles {
     fileNameList.foldLeft( 0 )( highestNum )
   }
 
-  def filterFileType( pattern: String, fileName: String ) = pattern.r.findFirstMatchIn( fileName ).isDefined
+  def filterFileType( pattern: String, fileName: String ): Boolean =
+    pattern.r.findFirstMatchIn( fileName ).isDefined
 
-  def filesIncluding( ver: Int, fileNameList: List[String] ) = fileNameList.filter( fNum( _ ) == ver )
+  def filesIncluding( ver: Int, fileNameList: List[String] ): List[String] =
+    fileNameList.filter( fNum( _ ) == ver )
 
-  def filesLaterThan( ver: Int, fileNameList: List[String] ) = fileNameList.filter( fNum( _ ) > ver )
+  def filesLaterThan( ver: Int, fileNameList: List[String] ): List[String] =
+    fileNameList.filter( fNum( _ ) > ver )
 
-  def encapsulateWithRecords( records: Stream[String] ) = records.map( FlatFileRecord( _ ) )
+  def encapsulateWithRecords( records: Stream[String] ): Stream[FlatFileRecord] =
+    records.map( FlatFileRecord( _ ) )
 }
 
 trait FetchRemoteResources {

@@ -41,7 +41,7 @@ object TaricBuild extends Build {
     id = "taric-import",
     base = file( "taric-import" ),
     dependencies = Seq( core ),
-    settings = jarSettings ++ defaultSettings ++ buildSettings ++ depGraphSettings ++
+    settings = jarSettings ++ defaultSettings ++ buildSettings ++ depGraphSettings ++ Revolver.settings ++
       Seq(
         libraryDependencies ++= Dependencies.crypto ++
           Dependencies.io ++
@@ -55,7 +55,7 @@ object TaricBuild extends Build {
     base = file( "taric-core" ),
     dependencies = Seq( ),
     settings = jarSettings ++ defaultSettings ++ buildSettings ++ depGraphSettings ++ Seq(
-        libraryDependencies ++= Dependencies.akka
+        libraryDependencies ++= Dependencies.akka ++ Dependencies.b64
       )
   )
 
@@ -63,7 +63,7 @@ object TaricBuild extends Build {
     id = "taric-parse",
     base = file( "taric-parse" ),
     dependencies = Seq( core ),
-    settings = jarSettings ++ defaultSettings ++ buildSettings ++ depGraphSettings ++
+    settings = jarSettings ++ defaultSettings ++ buildSettings ++ depGraphSettings ++ Revolver.settings ++
       Seq(
         libraryDependencies ++= Dependencies.test
       )
@@ -96,7 +96,8 @@ object TaricBuild extends Build {
     import Dependency._
 
     val akka   = Seq( akkaActor, akkaRemote, akkaTestKit )
-    val crypto = Seq( bcprov, bcpkix, bcpg, codec )
+    val crypto = Seq( bcprov, bcpkix, bcpg )
+    val b64    = Seq( codec )
     val io     = Seq( scalaIO )
     val date   = Seq( scalaTime )
     val test   = Seq( akkaTestKit, scalaTest )

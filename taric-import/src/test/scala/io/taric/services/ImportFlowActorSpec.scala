@@ -105,12 +105,17 @@ class ImportFlowActorSpec( _system: ActorSystem ) extends TestKit( _system ) wit
       FetchRemoteResource( totUrl, "3090_KI.tot.gz.pgp" ),
       FetchRemoteResource( totUrl, "3090_KJ.tot.gz.pgp" ) )
 
+    eventProbe.expectMsg( 1 seconds, TotalBatches( 3 ) )
+
     Then( "fetch the remote resources, yielding line records" )
-    eventProbe.expectMsgClass( classOf[ProducedFlatFileRecord] )
-
-
-    // Then( "parse the line records into structured TaricCodes" )
-    // Then( "merge information about existing codes, new codes and replaced codes" )
-    // Then( "persist codes into the persistent data store" )
+    // 45 KA Records, 8 KI Records, 8 KJ Records, 9 Control messages
+    checkForFlatFileRecords( eventProbe, ( 45 + 8 + 8 + 6 ) )
   }
+
+  private[this] def checkForFlatFileRecords( probe: TestProbe, maxMessages: Int ) = probe
+    .receiveWhile( 1500 millis, 200 millis, maxMessages ) {
+      case BatchCompleted( _, noMessages ) ⇒ noMessages == ( maxMessages - 2 )
+      case r: ProducedFlatFileRecord       ⇒ true
+      case e                               ⇒ println( s"Got incorrect message $e." ); false
+    }
 }

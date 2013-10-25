@@ -11,6 +11,7 @@ import scala.concurrent.duration._
 import TestSetup._
 import services.EventBus._
 import services.CommandBus._
+import util.IdGenerator._
 
 /**
  * File created: 2013-01-16 14:43
@@ -38,15 +39,15 @@ class ProductCodeConverterActorSpec( _system: ActorSystem ) extends TestKit( _sy
 
     val kaCommands = for {
       line ← TestData.kaFile.split( "\n" )
-    } yield ParseFlatFileRecord( FlatFileRecord( line ) )
+    } yield ParseFlatFileRecord( FlatFileRecord( line ), genNewId() )
 
     val kiCommands = for {
       line ← TestData.kiFile.split( "\n" )
-    } yield ParseFlatFileRecord( FlatFileRecord( line ) )
+    } yield ParseFlatFileRecord( FlatFileRecord( line ), genNewId() )
 
     val kjCommands = for {
       line ← TestData.kjFile.split( "\n" )
-    } yield ParseFlatFileRecord( FlatFileRecord( line ) )
+    } yield ParseFlatFileRecord( FlatFileRecord( line ), genNewId() )
 
     kaCommands.foreach( converterRef ! _ )
     kiCommands.foreach( converterRef ! _ )

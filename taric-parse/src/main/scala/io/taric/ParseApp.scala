@@ -25,6 +25,7 @@ object ParseApp extends App with ParseApplication {
 
   // Services
   val parser = systemRef.actorOf( Props( new Parser ), "parser" )
+  val aggregator = systemRef.actorOf( Props( new BatchAggregator ), "aggregator" )
   val workers = systemRef.actorOf( Props( new TaricCodeConverterWorker ).withRouter( FromConfig() ), "parserWorkers" )
 
   this.startSystem
@@ -35,11 +36,13 @@ trait ParseApplication {
   def commandBusRef: ActorRef
   def eventBusRef: ActorRef
   def parser: ActorRef
+  def aggregator: ActorRef
   def workers: ActorRef
 
   private[this] def registerListeners {
     commandBusRef ! Listen( parser )
     commandBusRef ! Listen( workers )
+    eventBusRef ! Listen( aggregator )
   }
 
   def prepareSystem {

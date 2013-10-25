@@ -23,10 +23,10 @@ class RemoteResources( implicit d: FetchRemoteResources, e: EventProducer ) exte
     fileVersion ← Future( latestFileVersion( filteredNames ) )
   } yield fileVersion
 
-  private[this] def fetchRemoteFileLines( url: String, fileName: String, batchId: BatchId ) = for {
+  private[this] def fetchRemoteFileLines( url: String, fileName: String ) = for {
     lines ← d.fetchFilePlainTextLines( url, fileName )
     records ← Future( ( lines map FlatFileRecord ) )
-    reports ← Future( ( records map ( ProducedFlatFileRecord( _, batchId ) ) ) )
+    reports ← Future( ( records map ( ProducedFlatFileRecord( _, fileName ) ) ) )
   } yield reports
 
   // Emits last Record as a special last record. Unpure method with side effects.
@@ -52,8 +52,7 @@ class RemoteResources( implicit d: FetchRemoteResources, e: EventProducer ) exte
   def receive = {
     case FetchListing( pattern, url ) ⇒ listComputeLatestVer( pattern, url ) pipeTo sender
     case FetchRemoteResource( url, fileName ) ⇒ {
-      val batchId: BatchId = genNewId()
-      emitBatch( fetchRemoteFileLines( url, fileName, batchId ), batchId )
+      emitBatch( fetchRemoteFileLines( url, fileName ), fileName )
     }
   }
 }

@@ -72,11 +72,20 @@ sealed trait TaricCodeType
 case object Import extends TaricCodeType
 case object Export extends TaricCodeType
 
-case class ExistingTaricCode( code: String, startDate: String, endDate: Option[String], codeType: TaricCodeType ) extends TaricCode {
+case class ExistingTaricCode(
+  code: String,
+  startDate: String,
+  endDate: Option[String],
+  codeType: TaricCodeType ) extends TaricCode {
   require( codePattern.findFirstIn( code ).isDefined && startDate.length > 0 )
 }
 
-case class ReplaceTaricCode( code: String, newCode: String, newDate: String, existingCodesAffected: Boolean, newCodeTypes: ( Option[TaricCodeType], Option[TaricCodeType] ) ) extends TaricCode {
+case class ReplaceTaricCode(
+  code: String,
+  newCode: String,
+  newDate: String,
+  existingCodesAffected: Boolean,
+  newCodeTypes: ( Option[TaricCodeType], Option[TaricCodeType] ) ) extends TaricCode {
   require( codePattern.findFirstIn( code ).isDefined && codePattern.findFirstIn( newCode ).isDefined && newDate.length > 0 )
   val newHs = newCode.take( 4 )
   val newHsSub = newCode.drop( 4 ).take( 2 )
@@ -85,7 +94,14 @@ case class ReplaceTaricCode( code: String, newCode: String, newDate: String, exi
   else None
 }
 
-case class NewTaricCode( code: String, oldCode: String, startDate: String, existingCodesAffected: Boolean, newCodeTypes: ( Option[TaricCodeType], Option[TaricCodeType] ) ) extends TaricCode {
+case class NewTaricCode(
+  code: String,
+  oldCode: String,
+  startDate: String,
+  existingCodesAffected: Boolean,
+  newCodeTypes: ( Option[TaricCodeType], Option[TaricCodeType] ) )
+  extends TaricCode {
+
   require( codePattern.findFirstIn( code ).isDefined && codePattern.findFirstIn( oldCode ).isDefined && startDate.length > 0 )
   val oldHs = oldCode.take( 4 )
   val oldHsSub = oldCode.drop( 4 ).take( 2 )

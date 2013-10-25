@@ -12,7 +12,7 @@ object TestSetup {
   val testConf: Config = ConfigFactory.parseString( """
       akka {
         event-handlers = ["akka.event.Logging$DefaultLogger"]
-        loglevel = "DEBUG"
+        loglevel = "ERROR"
         actor {
           provider = "akka.actor.LocalActorRefProvider"
         }

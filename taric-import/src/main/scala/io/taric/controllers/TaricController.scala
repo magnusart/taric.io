@@ -63,12 +63,27 @@ object ImportController {
     } yield Listings( tot, dif )
   }
 
-  def determineFilesToFetch( listings: Listings, currentVer: Int )( implicit c: CommandProducer ) = listings match {
-    case Listings( Listing( totUrl, totFiles, totVer ), Listing( difUrl, difFiles, difVer ) ) ⇒
+  def determineFilesToFetch(
+    listings: Listings,
+    currentVer: Int )(
+      implicit c: CommandProducer,
+      e: EventProducer ) = {
+
+    val Listings( Listing( totUrl, totFiles, totVer ), Listing( difUrl, difFiles, difVer ) ) = listings
+
+    val snaps =
       if ( shouldGetSnapshot( currentVer, totVer ) )
-        filesIncluding( totVer, totFiles ) map ( FetchRemoteResource( totUrl, _ ) ) foreach ( c.commandBus ! _ )
-      if ( shouldGetDeltas( currentVer, totVer, difVer ) )
-        filesLaterThan( totVer, difFiles ) map ( FetchRemoteResource( difUrl, _ ) ) foreach ( c.commandBus ! _ )
+        filesIncluding( totVer, totFiles ).map( FetchRemoteResource( totUrl, _ ) )
+      else List.empty
+
+    val tots = if ( shouldGetDeltas( currentVer, totVer, difVer ) )
+      filesLaterThan( totVer, difFiles ).map( FetchRemoteResource( difUrl, _ ) )
+    else None
+
+    val all = ( snaps :+ tots ).filterNot( _ == None )
+    e.eventBus ! TotalBatches( all.size )
+    all.foreach( c.commandBus ! _ )
+
   }
 
   private[this] def shouldGetDeltas( currentVer: Int, totVer: Int, difVer: Int ) = currentVer < totVer && totVer < difVer
@@ -122,6 +137,7 @@ class TaricImportFSM( implicit c: CommandProducer, e: EventProducer ) extends Ac
   // Cleanup
   onTransition {
     case state -> Idle ⇒
+      e.eventBus ! ResetState
       log.debug( s"Transitioning to state Idle from $state" )
   }
 

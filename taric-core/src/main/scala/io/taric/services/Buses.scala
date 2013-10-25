@@ -41,7 +41,7 @@ object CommandBus {
   case class FetchListing( pattern: String, url: String ) extends Command
   case class FetchRemoteResource( url: String, fileName: String ) extends Command
 
-  case class ParseFlatFileRecord( record: FlatFileRecord ) extends Command
+  case class ParseFlatFileRecord( record: FlatFileRecord, fileName: String ) extends Command
 }
 
 class EventBus extends Actor with ActorLogging with Listeners {
@@ -59,18 +59,17 @@ object EventBus {
     def eventBus: ActorRef
   }
 
-  type BatchId = String
-
   sealed trait Event
   case object StartedImport extends Event
   case object Prepared extends Event
   case object FinishedBrowsing extends Event
   case object ImportFinished extends Event
   case class ReplacedCurrentVersion( oldVer: Int, newVer: Int ) extends Event
-  case class ProducedFlatFileRecord( record: FlatFileRecord, batchId: BatchId ) extends Event
+  case class ProducedFlatFileRecord( record: FlatFileRecord, fileName: String ) extends Event
+  case class TotalBatches( num: Int ) extends Event
   case class LastFlatFileRecordForFile( record: FlatFileRecord ) extends Event
-  case class BatchCompleted( batchId: BatchId, noOfRecords: Int ) extends Event
-
+  case class BatchCompleted( fileName: String, noOfRecords: Int ) extends Event
+  case object ResetState extends Event
   case class CurrentVersion( ver: Int ) extends Event
   case class Listing( url: String, files: List[String], latestVer: Int ) extends Event
   case class Listings( tot: Listing, dif: Listing ) extends Event
@@ -79,5 +78,5 @@ object EventBus {
   case class TotDifUrls( TaricUrl: String, tot: TaricPathPattern, dif: TaricPathPattern ) extends Event
   case class VersionUrlsAggregate( ver: Int, urls: TotDifUrls ) extends Event
 
-  case class ParsedAsTaric( code: TaricRecord ) extends Event
+  case class ParsedAsTaric( code: TaricRecord, fileName: String ) extends Event
 }
