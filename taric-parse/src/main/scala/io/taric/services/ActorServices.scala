@@ -75,7 +75,7 @@ class BatchAggregator( implicit c: CommandProducer )
   def tryToFinish( fileName: String ) {
     if ( checkComplete( fileName ) ) batchesLeft = batchesLeft - 1
 
-    if ( batchesLeft == 0 ) println( "FINISHED!" )
+    if ( batchesLeft == 0 ) log.info( "FINISHED PARSING!" )
   }
 
   def handleFileName( fileName: String ) {
